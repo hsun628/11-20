@@ -1,0 +1,23 @@
+{% extends "global/Page.html" %}
+
+{{ block content }}
+
+<h3><b>第{{ player.round_number }}回合</b></h3>
+
+<div id="time-warning" style="display: none; color: red; font-weight: bold; margin: 10px 0; border: 1px solid red; padding: 10px;">
+    請盡快選擇決策數字！
+</div>
+
+    {{ formfields }}
+    {{ next_button }}
+
+
+{{ endblock }}
+
+{% block scripts %}
+<script>
+    setTimeout(function() {
+        document.getElementById('time-warning').style.display = 'block';
+    }, 90000); 
+</script>
+{% endblock %}

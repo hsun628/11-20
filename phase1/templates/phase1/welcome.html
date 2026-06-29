@@ -1,0 +1,16 @@
+{% extends "global/Page.html" %}
+
+{% block content %}
+    <h3 class="mb-4 text-center">
+        <b>歡迎參加本實驗</b>
+    </h3>
+
+    <p class="mb-4 text-center">
+        <b>請先不要點擊下方按鈕或進行其它操作，等待實驗人員指示再開始實驗。</b>
+    </p>
+
+
+    <div class="d-flex justify-content-center mt-5">
+        {% next_button %}
+    </div>
+{% endblock %}

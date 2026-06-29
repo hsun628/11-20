@@ -1,0 +1,43 @@
+{% extends "global/Page.html" %}
+{% load otree %}
+
+{% block content %}
+<h3 class="mb-4"><b>決策結果</b></h3>
+
+<p>過去回合的資訊：</p>
+
+<table class="table">
+    <thead>
+        <tr>
+            <th>回合</th>
+            <th>您的決策數字</th>
+            <th>平均數字</th>
+            <th>目標數字</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for d in history_data %}
+            <tr {% if d.is_current %}style="background-color: #fff3cd; font-weight: bold;"{% endif %}>
+            <td>{{ d.round }} {% if d.is_current %}(此回合){% endif %}</td>
+            <td>{{ d.decision }}</td>
+            <td>{{ d.mean }}</td>
+            <td>{{ d.target }}</td>
+            </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<p>
+    {% for d in history_data %}
+        {% if d.is_current %}
+            {% if d.is_luckywinner_2 %}
+                <span>您<b>是</b>此回合的決策數字贏家</span>
+            {% else %}
+                <span>您<b>不是</b>此回合的決策數字贏家</span>
+            {% endif %}
+        {% endif %}
+    {% endfor %}
+</p>
+
+    {% next_button %}
+{% endblock %}

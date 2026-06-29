@@ -1,0 +1,4 @@
+otree
+openai
+python-dotenv
+psycopg2-binary
