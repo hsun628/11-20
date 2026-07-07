@@ -133,8 +133,10 @@ class Results(Page):
         if player.round_number == C.NUM_ROUNDS:
             round_payoffs = {r: player.in_round(r).payoff for r in range(1, C.NUM_ROUNDS + 1)}
             sum_payoffs = sum(round_payoffs.values())
+
             player.participant.vars["phase2_round_payoffs"] = round_payoffs
             player.participant.vars["phase2_sum_payoffs"] = sum_payoffs
+            player.participant.vars["phase2_history"] = history
             
         return {
             'history': history

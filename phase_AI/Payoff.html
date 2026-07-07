@@ -16,7 +16,7 @@
         </tr>
     </thead>
     <tbody>
-        {% for entry in reason_history %}
+        {% for entry in phase2_history %}
         <tr>
             <td>{{ entry.round }}</td>
             <td>{% if entry.is_reasoning_round %}額外說明回合{% else %}一般回合{% endif %}</td>
@@ -29,7 +29,7 @@
     </tbody>
 </table>
 
-您在實驗第二部分的總報酬為 <b>{{ total_phase2_payoff }}</b> 法幣
+您在實驗第二部分的<b>總報酬</b>為 <b>{{ total_phase2_payoff }}</b> 法幣
 
 <div class="d-flex justify-content-center mt-4">
     {% next_button %}

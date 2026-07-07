@@ -3,6 +3,8 @@ from openai import OpenAI
 import os
 from dotenv import load_dotenv
 
+from dotenv import key
+
 import random
 import json
 import time
@@ -15,8 +17,9 @@ from settings import DEBUG
 
 load_dotenv()
 
-my_api_key = os.getenv('api_key')  
-model_used = "gpt-5.5"
+my_api_key = key
+# my_api_key = os.getenv('api_key')  
+model_used = "gpt-5.4"  # gpt-5.5 only allows temperature = 1
 
 client = OpenAI(api_key = my_api_key)  
 
@@ -55,13 +58,16 @@ class Player(BasePlayer):
 
     def gpt_process(self, p_vars):
         p_id = p_vars.get("id_in_subsession")
-        reason_history = []
         round_db_data = {}
 
-        phase_payoff = p_vars.get("round_payoffs", {})
+        phase_payoff = p_vars.get("phase2_round_payoffs", {})
         final_payoff = {r: cu(phase_payoff.get(r)) for r in range(1, C.NUM_ROUNDS + 1)}
 
-        if p_vars.get("reason_history"):
+        phase2_history = [dict(h) for h in p_vars.get("phase2_history")]
+        phase2_lookup = {h["round"]: h for h in phase2_history}
+
+        first_reasoning_r = C.reasoning_rounds[0]
+        if phase2_lookup.get(first_reasoning_r, {}).get("result_text"):
             _thread_storage[p_id] = {"status": "already_finished"}
             return
 
@@ -72,6 +78,13 @@ class Player(BasePlayer):
             human_num = p_vars.get(f'num_{r}')
             bonus = p_vars.get(f"bonus_{r}")
             bonus_text = "是" if bonus else "否"
+
+            current_round_dict = phase2_lookup.get(r)
+            if not current_round_dict:
+                continue
+
+            num = phase2_lookup.get(r).get("num")
+            other_num = phase2_lookup.get(r).get("other_num")
 
             print(f"=====當前處理回合 {r} - 受試者{p_id} =====")
             print(f"human_decision: {human_num}")
@@ -86,7 +99,7 @@ class Player(BasePlayer):
                     gpt_reason = gpt_generate(C.experimental_rules, r, human_num)
                     winner_type, gpt_analysis = gpt_judge(C.experimental_rules, human_reason, gpt_reason, target_is_flipped)
 
-                    original_payoff = cu(p_vars.get(f"payoff_{r}"))
+                    original_payoff = cu(phase_payoff.get(r))
 
                     if winner_type in ["Human", "Tie"]:
                         final_payoff[r] = cu(C.Pass_Reward)
@@ -105,15 +118,12 @@ class Player(BasePlayer):
                         "payoff_adj": payoff_adj
                     }
 
-                    reason_history.append({
-                        "round": r,
-                        "human_reason": human_reason,
-                        "gpt_reason": gpt_reason,
-                        "winner_type": winner_type,
-                        "bonus_text": bonus_text,
-                        "result_text": result_text,
-                        "final_payoff": final_payoff[r] 
-                    })
+                    current_round_dict["human_reason"] = human_reason
+                    current_round_dict["gpt_reason"] = gpt_reason
+                    current_round_dict["winner_type"] = winner_type
+                    current_round_dict["bonus_text"] = bonus_text
+                    current_round_dict["result_text"] = result_text
+                    current_round_dict["final_payoff"] = final_payoff[r]
 
                     print(f"受試者 {p_id} 第 {r} 回合 API呼叫成功 - winner: {winner_type}")
 
@@ -124,7 +134,7 @@ class Player(BasePlayer):
 
         _thread_storage[p_id] = {
             "status": "done",
-            "reason_history": reason_history,
+            "phase2_history": phase2_history,
             "total_phase2_payoff": total_phase2_payoff,
             "db_data": round_db_data
         }
@@ -310,7 +320,9 @@ class ProcessingPage(Page):
                     return {player.id_in_group: {"status": "finished"}}
                 
                 if output.get("status") == "done":
-                    player.participant.vars["reason_history"] = output["reason_history"]
+                    updated_history = output.get("phase2_history", [])
+
+                    player.participant.vars["phase2_history"] = updated_history
                     player.participant.vars["total_phase2_payoff"] = output["total_phase2_payoff"]
 
                     round_db_data = output.get("db_data", {})     
@@ -339,11 +351,15 @@ class Results(Page):
 
     @staticmethod
     def vars_for_template(player):
-        reason_history = player.participant.vars.get("reason_history", [])
+        phase2_history = player.participant.vars.get("phase2_history", [])
         total_phase2_payoff = player.participant.vars.get("total_phase2_payoff")
 
+        for d in phase2_history:
+            d["is_reasoning_round"] = d.get("round") in C.reasoning_rounds
+            d["result_text"] = d.get("result_text", "")
+
         return {
-            "reason_history": reason_history,
+            "phase2_history": phase2_history,
             "total_phase2_payoff": total_phase2_payoff
         }
     
@@ -354,14 +370,21 @@ class Payoff(Page):
 
     @staticmethod
     def vars_for_template(player):
-        reason_history = player.participant.vars.get("reason_history", [])
+        phase2_history = player.participant.vars.get("phase2_history", [])
         total_phase2_payoff = player.participant.vars.get("total_phase2_payoff")
+        round_payoff = player.participant.vars.get("phase2_round_payoffs", {})
         
-        for d in reason_history:
+        for d in phase2_history:
             d["is_reasoning_round"] = d.get("round") in C.reasoning_rounds
+            d["result_text"] = d.get("result_text", "")
+
+            r = d.get("round")
+            if d.get("final_payoff") is None:
+                val = round_payoff.get(r)
+                d["final_payoff"] = cu(val)
 
         return {
-            "reason_history": reason_history,
+            "phase2_history": phase2_history,
             "total_phase2_payoff": total_phase2_payoff
         }
 

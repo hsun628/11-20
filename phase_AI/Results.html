@@ -14,11 +14,13 @@
         </tr>
     </thead>
     <tbody>
-        {% for entry in reason_history %}
-        <tr>
-            <td>{{ entry.round }}</td>
-            <td>{{ entry.result_text }}</td>
-        </tr>
+        {% for entry in phase2_history %}
+            {% if entry.is_reasoning_round %}
+            <tr>
+                <td>{{ entry.round }}</td>
+                <td>{{ entry.result_text }}</td>
+            </tr>
+            {% endif %}
         {% endfor %}
     </tbody>
 </table>
