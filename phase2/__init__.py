@@ -125,7 +125,9 @@ class Results(Page):
                 "other_num": f"{player.in_round(g.round_number).other_num}",
                 "reason": player.in_round(g.round_number).reason if g.round_number in C.reasoning_rounds else None,
                 'is_current': g.round_number == player.round_number,
-                'bonus': player.in_round(g.round_number).bonus
+                'is_reasoning_round': g.round_number in C.reasoning_rounds,
+                'bonus': player.in_round(g.round_number).bonus,
+                'round_payoff': player.in_round(g.round_number).payoff
             })
 
         if player.round_number == C.NUM_ROUNDS:

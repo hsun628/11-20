@@ -1,0 +1,38 @@
+{% extends "global/Page.html" %}
+{% load otree %}
+
+{% block content %}
+<h3 class="mb-4"><b>第二部分各回合報酬及總報酬</b></h3>
+
+<table class="table text-center">
+    <thead>
+        <tr>
+            <th>回合</th>
+            <th>回合類型</th>
+            <th>您的數字</th>
+            <th>對手的數字</th>
+            <th>獨立ChatGPT的判斷結果</th>
+            <th>回合報酬</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for entry in reason_history %}
+        <tr>
+            <td>{{ entry.round }}</td>
+            <td>{% if entry.is_reasoning_round %}額外說明回合{% else %}一般回合{% endif %}</td>
+            <td>{{ entry.num }}</td>
+            <td>{{ entry.other_num }}</td>
+            <td>{{ entry.result_text }}</td>
+            <td>{{ entry.final_payoff }} 法幣</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+您在實驗第二部分的總報酬為 <b>{{ total_phase2_payoff }}</b> 法幣
+
+<div class="d-flex justify-content-center mt-4">
+    {% next_button %}
+</div>
+
+{% endblock %}

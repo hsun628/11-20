@@ -4,38 +4,34 @@
 {% block content %}
 <h3 class="mb-4"><b>決策結果</b></h3>
 
-<p>過去回合的資訊：</p>
+<p class="mb-4"><b> 
+    ※ 額外說明回合報酬將在實驗第二部分結束後決定。
+</b></p>
 
-<table class="table">
+<table class="table text-center">
     <thead>
         <tr>
             <th>回合</th>
+            <th>回合類型</th>
             <th>您的數字</th>
             <th>對手的數字</th>
+            <th>是否獲得額外法幣</th>
+            <th>回合報酬</th>
         </tr>
     </thead>
     <tbody>
         {% for d in history %}
             <tr {% if d.is_current %}style="background-color: #fff3cd; font-weight: bold;"{% endif %}>
             <td>{{ d.round }} {% if d.is_current %}(此回合){% endif %}</td>
+            <td>{% if d.is_reasoning_round %}額外說明回合{% else %}一般回合{% endif %}</td>
             <td>{{ d.num }}</td>
             <td>{{ d.other_num }}</td>
+            <td>{% if d.bonus %}是{% else %}否{% endif %}</td>
+            <td>{% if d.is_reasoning_round %}尚未決定{% else %}{{ d.round_payoff }}{% endif %}</td>
             </tr>
         {% endfor %}
     </tbody>
 </table>
-
-<p>
-    {% for d in history %}
-        {% if d.is_current %}
-            {% if d.bonus %}
-                <span>此回合您<b>獲得</b>額外法幣報酬</span>
-            {% else %}
-                <span>此回合您<b>未獲得</b>額外法幣報酬</span>
-            {% endif %}
-        {% endif %}
-    {% endfor %}
-</p>
 
     {% next_button %}
 {% endblock %}
