@@ -10,15 +10,14 @@
         margin: 20px 0;
     }
 
-    /* 將原本的 img-box 改良為裝文字的卡片 */
     .reason-card {
         border: 1px solid #dee2e6;
         border-radius: 12px;
         padding: 25px;
-        text-align: left; /* 文字理由建議靠左對齊，較易閱讀 */
+        text-align: left;
         width: 48%;
         background-color: #ffffff;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.05); /* 增加輕微陰影 */
+        box-shadow: 0 4px 6px rgba(0,0,0,0.05);
         display: flex;
         flex-direction: column;
     }
@@ -33,13 +32,12 @@
         text-align: center;
     }
 
-    /* 處理受試者文字的容器 */
     .reasoning-text {
         font-size: 1.05rem;
         line-height: 1.6;
         color: #333;
         min-height: 120px;
-        white-space: pre-wrap; /* 保持受試者原始的換行格式 */
+        white-space: pre-wrap;
         word-wrap: break-word;
     }
 
@@ -57,6 +55,17 @@
         min-width: 120px;
         padding: 12px 25px;
         font-weight: bold;
+        transition: all 0.2s ease; /* 增加過渡動畫 */
+    }
+
+    /* 💡 新增：當按鈕被選中時的實心高亮樣式 */
+    .btn-choice.active-A, .btn-choice.active-B {
+        background-color: #0d6efd !important;
+        color: white !important;
+    }
+    .btn-choice.active-Tie {
+        background-color: #6c757d !important;
+        color: white !important;
     }
 </style>
 
@@ -68,26 +77,53 @@
 </div>
 
 <div class="image-display-container">
-            <div class="reason-card">
-                <div class="reason-header">理由 A</div>
-                <div class="reasoning-text">{{ reason_a }}</div>
-            </div>
+    <div class="reason-card">
+        <div class="reason-header">理由 A</div>
+        <div class="reasoning-text">{{ reason_a }}</div>
+    </div>
 
-            <div class="reason-card">
-                <div class="reason-header">理由 B</div>
-                <div class="reasoning-text">{{ reason_b }}</div>
-            </div>
+    <div class="reason-card">
+        <div class="reason-header">理由 B</div>
+        <div class="reasoning-text">{{ reason_b }}</div>
+    </div>
 </div>
 
+<input type="hidden" name="prediction" id="prediction-input" value="">
+
 <div class="options-container">
-    <button type="submit" name="prediction" value="A" class="btn btn-outline-primary btn-choice">理由 A</button>
-    <button type="submit" name="prediction" value="Tie" class="btn btn-outline-secondary btn-choice">兩者平手</button>
-    <button type="submit" name="prediction" value="B" class="btn btn-outline-primary btn-choice">理由 B</button>
+    <button type="button" id="btn-A" onclick="selectOption('A')" class="btn btn-outline-primary btn-choice">理由 A</button>
+    <button type="button" id="btn-Tie" onclick="selectOption('Tie')" class="btn btn-outline-secondary btn-choice">兩者平手</button>
+    <button type="button" id="btn-B" onclick="selectOption('B')" class="btn btn-outline-primary btn-choice">理由 B</button>
+</div>
+
+<div class="d-flex justify-content-center mt-4">
+    {% next_button %}
 </div>
 {% endblock %}
 
 {% block scripts %}
 <script>
+    // 💡 4. 控制受試者點擊行為的 JS 函數
+    function selectOption(val) {
+        // 更新隱藏欄位的值
+        document.getElementById('prediction-input').value = val;
+
+        // 移除所有按鈕的選取高亮狀態
+        document.getElementById('btn-A').classList.remove('active-A');
+        document.getElementById('btn-Tie').classList.remove('active-Tie');
+        document.getElementById('btn-B').classList.remove('active-B');
+
+        // 為當前點擊的按鈕加上對應的高亮 Class
+        if (val === 'A') {
+            document.getElementById('btn-A').classList.add('active-A');
+        } else if (val === 'Tie') {
+            document.getElementById('btn-Tie').classList.add('active-Tie');
+        } else if (val === 'B') {
+            document.getElementById('btn-B').classList.add('active-B');
+        }
+    }
+
+    // 原本的時間警告邏輯保持不變
     setTimeout(function() {
         var warning = document.getElementById('time-warning');
         if (warning) {

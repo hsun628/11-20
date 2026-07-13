@@ -380,3 +380,4 @@ To-Do:
 - 各回合feedback顯示報酬
 - 確認顯示文字
 - 加入AI
+![alt text](image-1.png)

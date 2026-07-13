@@ -8,7 +8,7 @@ class C(BaseConstants):
     NAME_IN_URL = 'after_questionaire'
     PLAYERS_PER_GROUP = 2 # if DEBUG else int(num_participant)
     NUM_ROUNDS = 3 if DEBUG else 10
-    Prediction_Reward = 50
+    Prediction_Reward = 20
     reasoning_rounds = [1, 3] if DEBUG else [1, 4, 7, 10]
     exchange_rate = 0.25   # exchange rate for NTD
     participation_fee = 150
@@ -24,7 +24,7 @@ class Group(BaseGroup):
 def calculate_results(group:Group):
     for p in group.get_players():
         tp = [player for player in p.subsession.get_players() if player.id_in_subsession == p.tp_id][0]
-        history = tp.participant.vars.get("reason_history", [])
+        history = tp.participant.vars.get("phase2_history", [])
 
         current_entry = None
         for entry in history:
@@ -96,13 +96,13 @@ class Prediction(Page):
         
         tp = player.subsession.get_players()[player.tp_id - 1]
            
-        history = tp.participant.vars.get("reason_history",[])
+        history = tp.participant.vars.get("phase2_history",[])
         current_entry = next(
             (entry for entry in history if entry.get("round") == player.round_number),
             {"human_reason": "NaN", "gpt_reason": "NaN", "winner_type": "NaN"}
         )
 
-        target_decision = tp.participant.vars.get(f'decision_{player.round_number}') 
+        target_num = tp.participant.vars.get(f'num_{player.round_number}') 
 
         if player.is_flipped:
             reason_a = current_entry.get("gpt_reason")
@@ -119,7 +119,7 @@ class Prediction(Page):
         return {
             "round_number": player.round_number,
             "tp_id": player.tp_id,
-            "target_decision": target_decision,
+            "target_num": target_num,
             "reason_a": reason_a,
             "reason_b": reason_b,
             "reason_history": current_entry,
@@ -149,7 +149,7 @@ class Results(Page):
         all_players = player.subsession.get_players()
         tp = all_players[tp_id - 1]
 
-        history = tp.participant.vars.get("reason_history", [])
+        history = tp.participant.vars.get("phase2_history", [])
 
         current_entry = next((e for e in history if e.get("round") == player.round_number), {})
         real_winner = current_entry.get("winner_type")

@@ -57,11 +57,22 @@
         min-width: 120px;
         padding: 12px 25px;
         font-weight: bold;
+        transition: all 0.2s ease; /* 增加過渡樣式動畫 */
+    }
+
+    /* 💡 新增：點選按鈕時的選取高亮樣式 */
+    .btn-choice.active-A, .btn-choice.active-B {
+        background-color: #0d6efd !important;
+        color: white !important;
+    }
+    .btn-choice.active-Tie {
+        background-color: #6c757d !important;
+        color: white !important;
     }
 </style>
 
 <h3 class="mb-4 text-center"><b>第 {{ reasoning_round_num }} 回合</b></h3>
-<p class="mb-4 text-center">以下為在實驗第二部分 <b>第 {{round_number}} 回合</b> 選擇 <b>[ {{ target_decision }} ]</b> 的兩個決策理由，請選擇您認為獨立的ChatGPT判斷較具體的決策理由：</p>
+<p class="mb-4 text-center">以下為在實驗第二部分 <b>第 {{round_number}} 回合</b> 選擇 <b>[ {{ target_num }} ]</b> 的兩個決策理由，請選擇您認為獨立的ChatGPT判斷較具體的決策理由：</p>
 
 <div id="time-warning" style="display: none; color: red; font-weight: bold; margin: 10px 0; border: 1px solid red; padding: 10px;">
     請盡快做出預測！
@@ -81,9 +92,39 @@
     {% endif %}
 </div>
 
+<input type="hidden" name="prediction" id="prediction-input" value="">
+
 <div class="options-container">
-    <button type="submit" name="prediction" value="A" class="btn btn-outline-primary btn-choice">理由 A</button>
-    <button type="submit" name="prediction" value="Tie" class="btn btn-outline-secondary btn-choice">兩者平手</button>
-    <button type="submit" name="prediction" value="B" class="btn btn-outline-primary btn-choice">理由 B</button>
+    <button type="button" id="btn-A" onclick="selectOption('A')" class="btn btn-outline-primary btn-choice">理由 A</button>
+    <button type="button" id="btn-Tie" onclick="selectOption('Tie')" class="btn btn-outline-secondary btn-choice">兩者平手</button>
+    <button type="button" id="btn-B" onclick="selectOption('B')" class="btn btn-outline-primary btn-choice">理由 B</button>
 </div>
+
+<div class="d-flex justify-content-center mt-4">
+    {% next_button %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // 💡 4. JavaScript 狀態控制函數
+    function selectOption(val) {
+        // 將選擇的值寫入隱藏的 input
+        document.getElementById('prediction-input').value = val;
+
+        // 清除所有按鈕的高亮 active 狀態
+        document.getElementById('btn-A').classList.remove('active-A');
+        document.getElementById('btn-Tie').classList.remove('active-Tie');
+        document.getElementById('btn-B').classList.remove('active-B');
+
+        // 依據受試者選取的選項，動態幫按鈕套上對應的高亮樣式
+        if (val === 'A') {
+            document.getElementById('btn-A').classList.add('active-A');
+        } else if (val === 'Tie') {
+            document.getElementById('btn-Tie').classList.add('active-Tie');
+        } else if (val === 'B') {
+            document.getElementById('btn-B').classList.add('active-B');
+        }
+    }
+</script>
 {% endblock %}

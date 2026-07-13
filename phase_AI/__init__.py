@@ -3,8 +3,6 @@ from openai import OpenAI
 import os
 from dotenv import load_dotenv
 
-from dotenv import key
-
 import random
 import json
 import time
@@ -17,8 +15,7 @@ from settings import DEBUG
 
 load_dotenv()
 
-my_api_key = key
-# my_api_key = os.getenv('api_key')  
+my_api_key = os.getenv('api_key')  
 model_used = "gpt-5.4"  # gpt-5.5 only allows temperature = 1
 
 client = OpenAI(api_key = my_api_key)  
@@ -27,7 +24,7 @@ class C(BaseConstants):
     NAME_IN_URL = 'phase_AI'
     PLAYERS_PER_GROUP = 2 # if DEBUG else int(num_participant)
     NUM_ROUNDS = 3 if DEBUG else 10
-    Pass_Reward = 100 # the payoff for players who pass the reason assessment
+    Pass_Reward = 20 # the payoff for players who pass the reason assessment
     reasoning_rounds = [1, 3] if DEBUG else [1, 4, 7, 10]
 
     experimental_rules = """
@@ -376,7 +373,7 @@ class Payoff(Page):
         
         for d in phase2_history:
             d["is_reasoning_round"] = d.get("round") in C.reasoning_rounds
-            d["result_text"] = d.get("result_text", "")
+            d["result_text"] = d.get("result_text", "-")
 
             r = d.get("round")
             if d.get("final_payoff") is None:
