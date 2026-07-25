@@ -2,37 +2,96 @@
 {% load otree %}
 
 {% block content %}
-<h3 class="mb-4"><b>第二部分各回合報酬及總報酬</b></h3>
+<div class="container mt-4">
+    <h2 class="mb-4 text-center"><b>實驗報酬結算</b></h2>
 
-<table class="table text-center">
-    <thead>
-        <tr>
-            <th>回合</th>
-            <th>回合類型</th>
-            <th>您的數字</th>
-            <th>對手的數字</th>
-            <th>獨立ChatGPT的判斷結果</th>
-            <th>回合報酬</th>
-        </tr>
-    </thead>
-    <tbody>
-        {% for entry in phase2_history %}
-        <tr>
-            <td>{{ entry.round }}</td>
-            <td>{% if entry.is_reasoning_round %}額外說明回合{% else %}一般回合{% endif %}</td>
-            <td>{{ entry.num }}</td>
-            <td>{{ entry.other_num }}</td>
-            <td>{{ entry.result_text }}</td>
-            <td>{{ entry.final_payoff }} 法幣</td>
-        </tr>
-        {% endfor %}
-    </tbody>
-</table>
+    <!-- 標籤頁控制紐 -->
+    <ul class="nav nav-tabs mb-4" id="payoffTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active fw-bold" id="phase2-tab" data-bs-toggle="tab" data-bs-target="#phase2" type="button" role="tab">
+                第二部分結果
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link fw-bold" id="phase3-tab" data-bs-toggle="tab" data-bs-target="#phase3" type="button" role="tab">
+                第三部分結果
+            </button>
+        </li>
+    </ul>
 
-您在實驗第二部分的<b>總報酬</b>為 <b>{{ total_phase2_payoff }}</b> 法幣
+    <!-- 標籤頁內容 -->
+    <div class="tab-content" id="payoffTabsContent">
+        
+        <!-- 【第二部分】 -->
+        <div class="tab-pane fade show active" id="phase2" role="tabpanel">
+            <h4 class="mb-3 text-secondary"><b>第二部分各回合報酬</b></h4>
+            <table class="table table-hover text-center align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th>回合</th>
+                        <th>回合類型</th>
+                        <th>您的數字</th>
+                        <th>對手的數字</th>
+                        <th>獨立ChatGPT的判斷結果</th>
+                        <th>回合報酬</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for entry in phase2_history %}
+                    <tr>
+                        <td>{{ entry.round }}</td>
+                        <td>{% if entry.is_reasoning_round %}<span class="badge bg-info text-dark">額外說明</span>{% else %}一般回合{% endif %}</td>
+                        <td>{{ entry.num }}</td>
+                        <td>{{ entry.other_num }}</td>
+                        <td><small class="text-muted">{{ entry.result_text }}</small></td>
+                        <td class="fw-bold">{{ entry.final_payoff }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            <div class="alert alert-primary mt-3 text-end fs-5">
+                您在實驗第二部分的<b>總報酬</b>為 <b class="text-danger">{{ total_phase2_payoff }}</b>
+            </div>
+        </div>
 
-<div class="d-flex justify-content-center mt-4">
-    {% next_button %}
+        <!-- 【第三部分】 -->
+        <div class="tab-pane fade" id="phase3" role="tabpanel">
+            <h4 class="mb-3 text-secondary"><b>第三部分各回合報酬</b></h4>
+            <table class="table table-hover text-center align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th>回合</th>
+                        <th>回合類型</th>
+                        <th>您的決策</th>
+                        <th>幸運贏家</th>
+                        <th>獨立ChatGPT的判斷結果</th>
+                        <th>回合報酬</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for entry in phase3_history %}
+                    <tr>
+                        <td>{{ entry.round }}</td>
+                        <td>{% if entry.is_reasoning_round %}<span class="badge bg-info text-dark">額外說明</span>{% else %}一般回合{% endif %}</td>
+                        <td>{{ entry.decision_2 }}</td>
+                        <td>{{ entry.winner_text_2 }}</td>
+                        <td><small class="text-muted">{{ entry.result_text_2 }}</small></td>
+                        <td class="fw-bold">{{ entry.final_payoff_2 }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            <div class="alert alert-success mt-3 text-end fs-5">
+                您在實驗第三部分的<b>總報酬</b>為 <b class="text-danger">{{ total_phase3_payoff }}</b>
+            </div>
+        </div>
+    </div>
+
+    <hr class="my-4">
+
+    <!-- 下一步按鈕 -->
+    <div class="d-flex justify-content-center mt-4">
+        {% next_button %}
+    </div>
 </div>
-
 {% endblock %}

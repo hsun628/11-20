@@ -2,21 +2,18 @@
 
 from otree.api import *
 from settings import DEBUG
-from settings import num_participant
+# from settings import num_participant
+import random
 
 class C(BaseConstants):
     NAME_IN_URL = 'phase3'
-    PLAYERS_PER_GROUP = 2 if DEBUG else int(num_participant)
+    PLAYERS_PER_GROUP = 2 #if DEBUG else int(num_participant)
     NUM_ROUNDS = 3 if DEBUG else 10
     Winner_Reward = 100
     reasoning_rounds = [1, 3] if DEBUG else [1, 5, 10]
 
 class Subsession(BaseSubsession):
-    def creating_session(self):
-        if self.round_number == 1:
-            self.group_like_round("phase_1", 1)
-
-import random
+    pass
 
 class Group(BaseGroup):
     mean_number = models.FloatField()
@@ -24,13 +21,13 @@ class Group(BaseGroup):
 
 def set_payoffs(subsession: Subsession): # because we use wait_for_all_groups
     for group in subsession.get_groups():
-        all_decisions = [p.decision for p in group.get_players()]
+        all_num = [p.num for p in group.get_players()]
         
-        group.mean_number = sum(all_decisions) / C.PLAYERS_PER_GROUP
+        group.mean_number = sum(all_num) / C.PLAYERS_PER_GROUP
         group.target_number = 1.3 * group.mean_number
 
         for p in group.get_players():
-            p.distance = abs(p.decision - group.target_number)
+            p.distance = abs(p.num - group.target_number)
             p.payoff = cu(0)
 
         all_distances = [p.distance for p in group.get_players()]
@@ -40,20 +37,20 @@ def set_payoffs(subsession: Subsession): # because we use wait_for_all_groups
 
         for p in group.get_players():
             if p == lucky_winner:
-                p.is_luckywinner_2 = True   
+                p.bonus_2 = True   
                 p.payoff = cu(C.Winner_Reward)
             else:
-                p.is_luckywinner_2 = False 
+                p.bonus_2 = False 
                 p.payoff = cu(0)
 
+            p.participant.vars[f'num_2_{p.round_number}'] = p.num
             p.participant.vars[f'reason_2_{p.round_number}'] = p.reason if p.round_number in C.reasoning_rounds else None
-            p.participant.vars[f'decision_2_{p.round_number}'] = p.decision
             p.participant.vars[f'payoff_2_{p.round_number}'] = p.payoff
-            p.participant.vars[f'is_luckywinner_2_{p.round_number}'] = p.is_luckywinner_2
+            p.participant.vars[f'bonus_2_{p.round_number}'] = p.bonus_2
 
 class Player(BasePlayer):
     distance = models.FloatField()
-    decision = models.IntegerField(
+    num = models.IntegerField(
         min = 100,
         max = 200,
         label = "請選擇您的決策數字：",
@@ -62,7 +59,7 @@ class Player(BasePlayer):
         label = "請說明您選擇該數字的理由：",
         initial = ""
     )
-    is_luckywinner_2 = models.BooleanField(
+    bonus_2 = models.BooleanField(
         initial = False
     )
 
@@ -94,7 +91,7 @@ class Phase3StartWaitPage(WaitPage):
 
 class p_beauty(Page):
     form_model = 'player'
-    form_fields = ['decision']
+    form_fields = ['num']
 
 class reasoning_roundsWaitPage(WaitPage):
     title_text = "請等待所有受試者完成決策"
@@ -135,28 +132,32 @@ class DecisionWaitPage(WaitPage):
 class Results(Page):
     @staticmethod
     def vars_for_template(player):
-        group_history = player.group.in_all_rounds()
-        history_data = []
+        player_history = player.in_all_rounds()
+        history = []
 
-        for g in group_history:
-            history_data.append({
-                'round': g.round_number,
-                'decision': f"{player.in_round(g.round_number).decision}",
+        for p in player_history:
+            g = p.group
+            history.append({
+                'round': p.round_number,
+                'num': f"{player.in_round(p.round_number).num}",
                 'mean': f"{g.mean_number:.2f}",
                 "target": f"{g.target_number:.2f}",
-                "reason": player.in_round(g.round_number).reason if g.round_number in C.reasoning_rounds else None,
-                'is_current': g.round_number == player.round_number,
-                'is_luckywinner_2': player.in_round(g.round_number).is_luckywinner_2
+                "reason": player.in_round(p.round_number).reason if g.round_number in C.reasoning_rounds else None,
+                'is_current': p.round_number == player.round_number,
+                'bonus': player.in_round(p.round_number).bonus_2,
+                'round_payoff': player.in_round(p.round_number).payoff
             })
 
         if player.round_number == C.NUM_ROUNDS:
             round_payoffs = {r: player.in_round(r).payoff for r in range(1, C.NUM_ROUNDS + 1)}
             sum_payoffs = sum(round_payoffs.values())
+
             player.participant.vars["phase3_round_payoffs"] = round_payoffs
             player.participant.vars["phase3_sum_payoffs"] = sum_payoffs
+            player.participant.vars["phase3_history"] = history
             
         return {
-            'history_data': history_data
+            'history': history
         }
     
 

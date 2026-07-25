@@ -380,4 +380,14 @@ To-Do:
 - 各回合feedback顯示報酬
 - 確認顯示文字
 - 加入AI
-![alt text](image-1.png)
+
+
+### 7/14
+- 確認Bayesian level-k 受試者會如何寫理由 (老手update/ level-0 update)
+- Static level-0:
+
+
+### 7/21
+- random matching (12)
+- decision width
+- p-beauty

@@ -13,6 +13,9 @@ class C(BaseConstants):
 class Subsession(BaseSubsession):
     pass
 
+def creating_session(subsession):
+    subsession.group_randomly()
+
 import random
 
 class Group(BaseGroup):
@@ -115,19 +118,19 @@ class DecisionWaitPage(WaitPage):
 class Results(Page):
     @staticmethod
     def vars_for_template(player):
-        group_history = player.group.in_all_rounds()
+        player_history = player.in_all_rounds()
         history = []
 
-        for g in group_history:
+        for p in player_history:
             history.append({
-                'round': g.round_number,
-                'num': f"{player.in_round(g.round_number).num}",
-                "other_num": f"{player.in_round(g.round_number).other_num}",
-                "reason": player.in_round(g.round_number).reason if g.round_number in C.reasoning_rounds else None,
-                'is_current': g.round_number == player.round_number,
-                'is_reasoning_round': g.round_number in C.reasoning_rounds,
-                'bonus': player.in_round(g.round_number).bonus,
-                'round_payoff': player.in_round(g.round_number).payoff
+                'round': p.round_number,
+                'num': f"{player.in_round(p.round_number).num}",
+                "other_num": f"{player.in_round(p.round_number).other_num}",
+                "reason": player.in_round(p.round_number).reason if p.round_number in C.reasoning_rounds else None,
+                'is_current': p.round_number == player.round_number,
+                'is_reasoning_round': p.round_number in C.reasoning_rounds,
+                'bonus': player.in_round(p.round_number).bonus,
+                'round_payoff': player.in_round(p.round_number).payoff
             })
 
         if player.round_number == C.NUM_ROUNDS:
