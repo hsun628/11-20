@@ -24,7 +24,7 @@ def set_payoffs(subsession: Subsession): # because we use wait_for_all_groups
         all_num = [p.num for p in group.get_players()]
         
         group.mean_number = sum(all_num) / C.PLAYERS_PER_GROUP
-        group.target_number = 1.3 * group.mean_number
+        group.target_number = 0.7 * group.mean_number
 
         for p in group.get_players():
             p.distance = abs(p.num - group.target_number)
@@ -51,9 +51,9 @@ def set_payoffs(subsession: Subsession): # because we use wait_for_all_groups
 class Player(BasePlayer):
     distance = models.FloatField()
     num = models.IntegerField(
-        min = 100,
-        max = 200,
-        label = "請選擇您的決策數字：",
+        min = 0,
+        max = 100,
+        label = "請選擇您的數字：",
     )
     reason = models.LongStringField(
         label = "請說明您選擇該數字的理由：",
@@ -144,6 +144,7 @@ class Results(Page):
                 "target": f"{g.target_number:.2f}",
                 "reason": player.in_round(p.round_number).reason if g.round_number in C.reasoning_rounds else None,
                 'is_current': p.round_number == player.round_number,
+                'is_reasoning_round': p.round_number in C.reasoning_rounds,
                 'bonus': player.in_round(p.round_number).bonus_2,
                 'round_payoff': player.in_round(p.round_number).payoff
             })

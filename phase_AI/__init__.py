@@ -83,7 +83,7 @@ class Player(BasePlayer):
         phase3_history = [dict(h) for h in p_vars.get("phase3_history", [])]
         phase3_lookup = {h["round"]: h for h in phase3_history}
 
-        if phase2_lookup.get(C.reasoning_rounds[0], {}).get("result_text"):
+        if phase2_lookup.get(C.reasoning_rounds_p2[0], {}).get("result_text"):
             _thread_storage[p_id] = {"status": "already_finished"}
             return
 
@@ -113,11 +113,11 @@ class Player(BasePlayer):
                         original_payoff = cu(phase_payoff.get(r))
 
                         if winner_type in ["Human", "Tie"]:
-                            final_payoff_p3[r] = cu(C.Pass_Reward)
-                            payoff_adj = cu(C.Pass_Reward) - original_payoff
+                            final_payoff_p2[r] = cu(C.Pass_Reward_p2)
+                            payoff_adj = cu(C.Pass_Reward_p2) - original_payoff
                             result_text = "您的理由較具體"
                         else:
-                            final_payoff_p3[r] = cu(0)
+                            final_payoff_p2[r] = cu(0)
                             payoff_adj = - original_payoff
                             result_text = "AI生成的理由較具體"
 
@@ -142,22 +142,22 @@ class Player(BasePlayer):
 
             if r in C.reasoning_rounds_p3 and r in phase3_lookup:
                 human_reason_2 = p_vars.get(f"reason_2_{r}", "").strip()
-                human_decision_2 = p_vars.get(f'decision_2_{r}')
+                human_num_2 = p_vars.get(f'num_2_{r}')
                 is_luckywinner_2 = p_vars.get(f"is_luckywinner_2_{r}")
                 winner_text_2 = "是" if is_luckywinner_2 else "否"
                 current_round_dict_2 = phase3_lookup.get(r)
 
-                if human_reason_2 and human_decision_2 is not None:
+                if human_reason_2 and human_num_2 is not None:
                     try:
                         print(f"--- 受試者{p_id} 回合 {r} [Phase 3] 呼叫 API ---")
                         target_is_flipped_2 = random.choice([True, False])
-                        gpt_reason_2 = gpt_generate(C.experimental_rules_2, r, human_decision_2)
+                        gpt_reason_2 = gpt_generate(C.experimental_rules_2, r, human_num_2)
                         winner_type_2, gpt_analysis_2 = gpt_judge(C.experimental_rules_2, human_reason_2, gpt_reason_2, target_is_flipped_2)
 
                         original_payoff_2 = cu(phase3_payoff.get(r, 0))
                         if winner_type_2 in ["Human", "Tie"]:
-                            final_payoff_p3[r] = C.Pass_reward_2
-                            payoff_adj_2 = cu(C.Pass_Reward_2) - original_payoff_2
+                            final_payoff_p3[r] = C.Pass_reward_p3
+                            payoff_adj_2 = cu(C.Pass_Reward_p3) - original_payoff_2
                             result_text_2 = "您的理由較具體"
                         else:
                             final_payoff_p3[r] = cu(0)
@@ -387,7 +387,7 @@ class ProcessingPage(Page):
                         target_player.gpt_analysis = vals["gpt_analysis"]
                         target_player.winner_type = vals["winner_type"]
                         target_player.payoff_adj = vals["payoff_adj"]
-                        target_player.payoff = vals["payoff_adj"]
+                        target_player.payoff = cu(vals["payoff_adj"])
 
                     p3_db_data = output.get("p3_db_data", {})     
                     for r, vals in p3_db_data.items():
@@ -397,6 +397,7 @@ class ProcessingPage(Page):
                         target_player.gpt_analysis_2 = vals["gpt_analysis_2"]
                         target_player.winner_type_2 = vals["winner_type_2"]
                         target_player.payoff_adj_2 = vals["payoff_adj_2"]
+                        target_player.payoff += cu(vals["payoff_adj_2"])
 
                     player.is_gpt_finished = True
 

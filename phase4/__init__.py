@@ -9,7 +9,9 @@ class C(BaseConstants):
     PLAYERS_PER_GROUP = 2 # if DEBUG else int(num_participant)
     NUM_ROUNDS = 3 if DEBUG else 10
     Prediction_Reward = 20
-    reasoning_rounds = [1, 3] if DEBUG else [1, 4, 7, 10]
+    reasoning_rounds_p2 = [1, 3] if DEBUG else [1, 4, 7, 10]
+    reasoning_rounds_p3 = [1, 3] if DEBUG else [1, 5, 10]
+
     exchange_rate = 0.25   # exchange rate for NTD
     participation_fee = 150
 
@@ -23,6 +25,11 @@ class Group(BaseGroup):
 
 def calculate_results(group:Group):
     for p in group.get_players():
+
+        if p.round_number not in C.reasoning_rounds_p2 or p.field_maybe_none("tp_id") is None:
+            p.payoff = cu(0)
+            continue
+
         tp = [player for player in p.subsession.get_players() if player.id_in_subsession == p.tp_id][0]
         history = tp.participant.vars.get("phase2_history", [])
 
@@ -83,9 +90,11 @@ class Prediction(Page):
 
     @staticmethod
     def is_displayed(player):
-        if player.field_maybe_none("is_flipped") is None:
-            player.is_flipped = random.choice([True, False])
-        return player.round_number in C.reasoning_rounds
+        if player.round_number in C.reasoning_rounds_p2:
+            if player.field_maybe_none("is_flipped") is None:
+                player.is_flipped = random.choice([True, False])
+            return True
+        return False
 
     @staticmethod
     def vars_for_template(player):
@@ -114,7 +123,7 @@ class Prediction(Page):
         player.participant.vars[f"reason_a_{player.round_number}"] = reason_a
         player.participant.vars[f"reason_b_{player.round_number}"] = reason_b
 
-        reasoning_round_num = C.reasoning_rounds.index(player.round_number) + 1
+        reasoning_round_num = C.reasoning_rounds_p2.index(player.round_number) + 1
 
         return {
             "round_number": player.round_number,
@@ -131,7 +140,7 @@ class PredictionWaitPage(WaitPage):
     
     @staticmethod
     def is_displayed(player):
-        return player.round_number in C.reasoning_rounds
+        return player.round_number in C.reasoning_rounds_p2
 
     after_all_players_arrive = 'calculate_results'
 
@@ -139,7 +148,7 @@ class PredictionWaitPage(WaitPage):
 class Results(Page):
     @staticmethod
     def is_displayed(player):
-        return player.round_number in C.reasoning_rounds
+        return player.round_number in C.reasoning_rounds_p2
     
     @staticmethod
     def vars_for_template(player):
@@ -164,7 +173,7 @@ class Results(Page):
 
         result_text = "正確" if is_correct else "錯誤"
 
-        reasoning_round_num = C.reasoning_rounds.index(player.round_number) + 1
+        reasoning_round_num = C.reasoning_rounds_p2.index(player.round_number) + 1
 
         return {
             "reason_a": player.participant.vars[f"reason_a_{player.round_number}"],
