@@ -1,8 +1,13 @@
 {% extends "global/Page.html" %}
 {% load otree %}
 
-{% block content %}
+{% block styles %}
 <style>
+    /* 💡 保持一致性：隱藏 oTree 原生頂部的錯誤區塊，避免重複出現 */
+    .otree-form-errors {
+        display: none !important;
+    }
+
     .image-display-container {
         display: flex;
         justify-content: space-around;
@@ -55,10 +60,10 @@
         min-width: 120px;
         padding: 12px 25px;
         font-weight: bold;
-        transition: all 0.2s ease; /* 增加過渡動畫 */
+        transition: all 0.2s ease; 
     }
 
-    /* 💡 新增：當按鈕被選中時的實心高亮樣式 */
+    /* 當按鈕被選中時的實心高亮樣式 */
     .btn-choice.active-A, .btn-choice.active-B {
         background-color: #0d6efd !important;
         color: white !important;
@@ -68,13 +73,22 @@
         color: white !important;
     }
 </style>
+{% endblock %}
 
+{% block content %}
 <h3 class="mb-4 text-center"><b>第{{ player.round_number }}回合</b></h3>
-<p class="mb-4 text-center">以下為選擇 <b>熬夜讀書</b> 的兩個決策理由，請選擇您認為獨立的ChatGPT判斷較具體的決策理由：</p>
 
-<div id="time-warning" style="display: none; color: red; font-weight: bold; margin: 10px 0; border: 1px solid red; padding: 10px;">
+<!-- 錯誤提示區塊 -->
+<div id="error-warning" style="display: none; color: #dc3545; font-weight: bold; margin: 15px 0; border: 2px solid #dc3545; padding: 12px; border-radius: 8px; background-color: #fff5f5;">
+    請先選擇您認為獨立的ChatGPT判斷較具體的理由！
+</div>
+
+<!-- 90 秒超時提醒區塊 -->
+<div id="time-warning" style="display: none; color: #dc3545; font-weight: bold; margin: 15px 0; border: 2px solid #dc3545; padding: 12px; border-radius: 8px; background-color: #fff5f5;">
     請盡快做出預測！
 </div>
+
+<p class="mb-4 text-center">以下為選擇 <b>熬夜讀書</b> 的兩個決策理由，請選擇您認為獨立的ChatGPT判斷較具體的決策理由：</p>
 
 <div class="image-display-container">
     <div class="reason-card">
@@ -96,14 +110,15 @@
     <button type="button" id="btn-B" onclick="selectOption('B')" class="btn btn-outline-primary btn-choice">理由 B</button>
 </div>
 
+<!-- 修改關鍵 1：替換為純前端自訂按鈕，防止空表單提交給後端 -->
 <div class="d-flex justify-content-center mt-4">
-    {% next_button %}
+    <button type="button" class="btn btn-primary otree-next-button" id="custom-next-btn">Next</button>
 </div>
 {% endblock %}
 
 {% block scripts %}
 <script>
-    // 💡 4. 控制受試者點擊行為的 JS 函數
+    // 控制受試者點擊行為的 JS 函數
     function selectOption(val) {
         // 更新隱藏欄位的值
         document.getElementById('prediction-input').value = val;
@@ -121,13 +136,54 @@
         } else if (val === 'B') {
             document.getElementById('btn-B').classList.add('active-B');
         }
+
+        // 💡 覆蓋邏輯：一旦受試者做出選擇，清空清除所有提示訊息
+        const errorWarning = document.getElementById('error-warning');
+        const timeWarning = document.getElementById('time-warning');
+        if (errorWarning) errorWarning.style.display = 'none';
+        if (timeWarning) timeWarning.style.display = 'none';
     }
 
-    // 原本的時間警告邏輯保持不變
+    document.addEventListener("DOMContentLoaded", function() {
+        const otreeInput = document.getElementById('prediction-input');
+        const errorWarning = document.getElementById('error-warning');
+        const timeWarning = document.getElementById('time-warning');
+        const form = document.querySelector('form');
+        const customNextBtn = document.getElementById('custom-next-btn');
+
+        // 修改關鍵 3：控制自訂 Next 按鈕的防呆攔截
+        if (customNextBtn && form) {
+            customNextBtn.addEventListener('click', function(e) {
+                // 如果受試者還沒有點選任何按鈕（input值為空）
+                if (!otreeInput || !otreeInput.value || otreeInput.value.trim() === "") {
+                    // 💡 覆蓋邏輯：點擊 Next 報錯時，直接強制隱藏超時訊息，讓錯誤訊息覆蓋它
+                    if (timeWarning) {
+                        timeWarning.style.display = 'none';
+                    }
+                    if (errorWarning) {
+                        errorWarning.style.display = 'block';
+                        window.scrollTo(0, 0); // 瞬間置頂，絕無動畫延遲
+                    }
+                } else {
+                    // 已做選擇，順暢且最快速度送出表單
+                    form.submit();
+                }
+            });
+        }
+    });
+
+    // 90 秒超時提醒邏輯
     setTimeout(function() {
-        var warning = document.getElementById('time-warning');
-        if (warning) {
-            warning.style.display = 'block';
+        const errorWarning = document.getElementById('error-warning');
+        const timeWarning = document.getElementById('time-warning');
+        
+        // 💡 覆蓋邏輯：時間到了之後，不論目前有沒有錯誤訊息，直接強制隱藏錯誤訊息，讓超時訊息覆蓋它
+        if (errorWarning) {
+            errorWarning.style.display = 'none';
+        }
+        if (timeWarning) {
+            timeWarning.style.display = 'block';
+            window.scrollTo(0, 0); // 超時覆蓋時同樣瞬間置頂提示受試者
         }
     }, 90000); 
 </script>

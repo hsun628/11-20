@@ -3,28 +3,37 @@
 
 {% block styles %}
 <style>
+    /* 隱藏 oTree 原生頂部的錯誤區塊，避免重複出現 */
+    .otree-form-errors {
+        display: none !important;
+    }
+
     /* 強制修改理由輸入框的大小 */
     textarea {
-        min-height: 200px !important; /* 設定高度為 300 像素 */
-        width: 100% !important;       /* 寬度佔滿 */
-        padding: 15px !important;     /* 內邊距，打字比較舒服 */
-        font-size: 16px !important;   /* 字體放大一點 */
+        min-height: 200px !important; 
+        width: 100% !important;       
+        padding: 15px !important;     
+        font-size: 16px !important;   
         border: 2px solid #ced4da !important;
         border-radius: 8px !important;
         line-height: 1.6 !important;
+        transition: border-color 0.15s ease-in-out;
     }
 
-    /* 當輸入框獲得焦點時改變顏色，讓受試者知道正在輸入 */
+    /* 當輸入框被點擊聚焦時，保持邊框變色，但徹底移除淺藍色陰影與外框線 */
     textarea:focus {
         border-color: #007bff !important;
-        box-shadow: 0 0 8px rgba(0,123,255,0.25) !important;
-        outline: none !important;
+        box-shadow: none !important;      
+        outline: none !important;         
     }
 
-    /* 調整提示框樣式 */
-    #time-warning {
-        background-color: #fff3f3;
-        border-radius: 5px;
+    /* 統一調整提示框樣式 */
+    #time-warning, #error-warning {
+        margin: 15px 0; 
+        border: 2px solid #dc3545; 
+        padding: 12px; 
+        border-radius: 8px; 
+        background-color: #fff5f5;
     }
 </style>
 {% endblock %}
@@ -32,22 +41,98 @@
 {% block content %}
 <h3><b>此回合為額外說明回合</b></h3>
 
-<div id="time-warning" style="display: none; color: red; font-weight: bold; margin: 10px 0; border: 1px solid red; padding: 10px;">
+<p>請說明您選擇 <b>[{{ player.num }}]</b> 的理由：</p>
+
+<!-- 統一錯誤提示區塊：預設隱藏，文字由下方 JavaScript 在提交時動態決定 -->
+<div id="error-warning" style="display: none; color: #dc3545; font-weight: bold;">
+    請填寫您的決策理由！
+</div>
+
+<!-- 180 秒超時提醒區塊 -->
+<div id="time-warning" style="display: none; color: #dc3545; font-weight: bold;">
     請盡快提交您的決策理由！
 </div>
 
-    {{ formfields }}
+<!-- 指定理由欄位輸入框 -->
+<div class="mb-4">
+    {{ form.reason }}
+</div>
 
-<div class="d-flex justify-content mt-4">
-    {% next_button %}
+<!-- 替換為純前端自訂按鈕，防止空表單直接送出 -->
+<div class="d-flex justify-content-center mt-4">
+    <button type="button" class="btn btn-primary otree-next-button" id="custom-next-btn">Next</button>
 </div>
 
 {% endblock %}
 
 {% block scripts %}
 <script>
+    document.addEventListener("DOMContentLoaded", function() {
+        const otreeInput = document.getElementById('id_reason'); 
+        const errorWarning = document.getElementById('error-warning');
+        const timeWarning = document.getElementById('time-warning');
+        const form = document.querySelector('form');
+        const customNextBtn = document.getElementById('custom-next-btn');
+
+        // 💡 覆蓋邏輯：當受試者手動打字時，立刻同時隱藏錯誤提示與超時提示
+        if (otreeInput) {
+            otreeInput.addEventListener('input', function() {
+                if (errorWarning) errorWarning.style.display = 'none';
+                if (timeWarning) timeWarning.style.display = 'none';
+            });
+        }
+
+        // 點擊 Next 時，完全在前端進行空白與重複字元的邏輯判斷
+        if (customNextBtn && form) {
+            customNextBtn.addEventListener('click', function(e) {
+                if (!otreeInput || !errorWarning) return;
+
+                const content = otreeInput.value.trim();
+
+                // 1. 檢查是否為空白
+                if (content === "") {
+                    // 💡 覆蓋邏輯：點擊 Next 報錯時，直接強制隱藏超時訊息，讓錯誤訊息覆蓋它
+                    if (timeWarning) {
+                        timeWarning.style.display = 'none';
+                    }
+                    errorWarning.innerHTML = "請填寫您的決策理由！";
+                    errorWarning.style.display = 'block';
+                    window.scrollTo(0, 0); // 瞬間置頂，絕無動畫延遲
+                    return; // 阻斷提交
+                }
+
+                // 2. 對齊 Python 的 len(set(content)) < 3 邏輯
+                const uniqueChars = new Set(content);
+                if (uniqueChars.size < 3) {
+                    // 💡 覆蓋邏輯：點擊 Next 報錯時，同樣直接強制隱藏超時訊息
+                    if (timeWarning) {
+                        timeWarning.style.display = 'none';
+                    }
+                    errorWarning.innerHTML = "請勿輸入過短、單一，或重複的文字內容。";
+                    errorWarning.style.display = 'block';
+                    window.scrollTo(0, 0); // 瞬間置頂
+                    return; // 阻斷提交
+                }
+
+                // 3. 通過所有前端 HTML 規則，執行送出
+                form.submit();
+            });
+        }
+    });
+
+    // 180 秒超時提醒邏輯
     setTimeout(function() {
-        document.getElementById('time-warning').style.display = 'block';
+        const errorWarning = document.getElementById('error-warning');
+        const timeWarning = document.getElementById('time-warning');
+        
+        // 💡 覆蓋邏輯：時間到了之後，不論目前有沒有錯誤訊息，直接強制隱藏錯誤訊息，讓超時訊息覆蓋它
+        if (errorWarning) {
+            errorWarning.style.display = 'none';
+        }
+        if (timeWarning) {
+            timeWarning.style.display = 'block';
+            window.scrollTo(0, 0); // 超時覆蓋時同樣瞬間置頂提示受試者
+        }
     }, 180000); 
 </script>
 {% endblock %}

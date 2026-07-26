@@ -143,8 +143,6 @@ class Player(BasePlayer):
             if r in C.reasoning_rounds_p3 and r in phase3_lookup:
                 human_reason_2 = p_vars.get(f"reason_2_{r}", "").strip()
                 human_num_2 = p_vars.get(f'num_2_{r}')
-                is_luckywinner_2 = p_vars.get(f"is_luckywinner_2_{r}")
-                winner_text_2 = "是" if is_luckywinner_2 else "否"
                 current_round_dict_2 = phase3_lookup.get(r)
 
                 if human_reason_2 and human_num_2 is not None:
@@ -174,7 +172,7 @@ class Player(BasePlayer):
 
                         current_round_dict_2.update({
                             "human_reason_2": human_reason_2, "gpt_reason_2": gpt_reason_2,
-                            "winner_type_2": winner_type_2, "winner_text_2": winner_text_2,
+                            "winner_type_2": winner_type_2,
                             "result_text_2": result_text_2, "final_payoff_2": final_payoff_p3[r]
                         })
                     except Exception as e:
@@ -414,19 +412,40 @@ class Results(Page):
 
     @staticmethod
     def vars_for_template(player):
+
         phase2_history = player.participant.vars.get("phase2_history", [])
-        phase3_history = player.participant.vars.get("phase3_history", [])
+        total_phase2_payoff = player.participant.vars.get("total_phase2_payoff")
+        round_payoff_p2 = player.participant.vars.get("phase2_round_payoffs", {})
         
         for d in phase2_history:
             d["is_reasoning_round"] = d.get("round") in C.reasoning_rounds_p2
+            d["result_text"] = d.get("result_text", "-")
+
+            r = d.get("round")
+
+            if d.get("final_payoff") is None:
+                val = round_payoff_p2.get(r, 0)
+                d["final_payoff"] = cu(val)
+
+        phase3_history = player.participant.vars.get("phase3_history", [])
+        total_phase3_payoff = player.participant.vars.get("total_phase3_payoff")
+        round_payoff_p3 = player.participant.vars.get("phase3_round_payoffs", {})
+        
         for d in phase3_history:
             d["is_reasoning_round"] = d.get("round") in C.reasoning_rounds_p3
+            d["result_text_2"] = d.get("result_text_2", "-")
+
+            r = d.get("round")
+
+            if d.get("final_payoff_2") is None:
+                val = round_payoff_p3.get(r, 0)
+                d["final_payoff_2"] = cu(val)
 
         return {
             "phase2_history": phase2_history,
+            "total_phase2_payoff": total_phase2_payoff,
             "phase3_history": phase3_history,
-            "total_phase2_payoff": player.participant.vars.get("total_phase2_payoff"),
-            "total_phase3_payoff": player.participant.vars.get("total_phase3_payoff")
+            "total_phase3_payoff": total_phase3_payoff
         }
     
 class Payoff(Page):
@@ -436,45 +455,38 @@ class Payoff(Page):
 
     @staticmethod
     def vars_for_template(player):
-        # -----------------------------------------------------------------
-        # 【第一軌：處理 Phase 2 資料】
-        # -----------------------------------------------------------------
+
         phase2_history = player.participant.vars.get("phase2_history", [])
         total_phase2_payoff = player.participant.vars.get("total_phase2_payoff")
         round_payoff_p2 = player.participant.vars.get("phase2_round_payoffs", {})
         
         for d in phase2_history:
-            # 判斷是否為 Phase 2 的說明回合
             d["is_reasoning_round"] = d.get("round") in C.reasoning_rounds_p2
             d["result_text"] = d.get("result_text", "-")
 
             r = d.get("round")
-            # 如果 GPT 判斷沒跑成功或不需要調整，則抓取原始 Phase 2 的決策報酬
+
             if d.get("final_payoff") is None:
                 val = round_payoff_p2.get(r, 0)
                 d["final_payoff"] = cu(val)
 
-        # -----------------------------------------------------------------
-        # 【第二軌：處理 Phase 3 資料】
-        # -----------------------------------------------------------------
         phase3_history = player.participant.vars.get("phase3_history", [])
         total_phase3_payoff = player.participant.vars.get("total_phase3_payoff")
         round_payoff_p3 = player.participant.vars.get("phase3_round_payoffs", {})
         
         for d in phase3_history:
-            # 判斷是否為 Phase 3 的說明回合
             d["is_reasoning_round"] = d.get("round") in C.reasoning_rounds_p3
             d["result_text_2"] = d.get("result_text_2", "-")
 
+            if "is_luckywinner" not in d:
+                d["is_luckywinner"] = False
+
             r = d.get("round")
-            # 如果 GPT 判斷沒跑成功或不需要調整，則抓取原始 Phase 3 的決策報酬
+
             if d.get("final_payoff_2") is None:
                 val = round_payoff_p3.get(r, 0)
                 d["final_payoff_2"] = cu(val)
 
-        # -----------------------------------------------------------------
-        # 【回傳至前端 HTML 模板】
-        # -----------------------------------------------------------------
         return {
             "phase2_history": phase2_history,
             "total_phase2_payoff": total_phase2_payoff,
@@ -482,12 +494,10 @@ class Payoff(Page):
             "total_phase3_payoff": total_phase3_payoff
         }
 
-
 page_sequence = [
     InstructionPage,
     ProcessingPage,
-    Results,
-    Payoff
+    Results
     ]
 
  

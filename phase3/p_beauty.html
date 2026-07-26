@@ -1,23 +1,123 @@
 {% extends "global/Page.html" %}
+{% load otree %}
 
-{{ block content }}
+{% block styles %}
+<style>
+    /* 💡 保持一致性：隱藏 oTree 原生頂部的錯誤區塊，避免重複或衝突出現 */
+    .otree-form-errors {
+        display: none !important;
+    }
+    
+    #id_num {
+        width: 100px !important;     
+        max-width: 100%;
+        font-size: 1rem;          
+        padding: 8px;
+        border: 2px solid #ced4da;
+        border-radius: 8px;
+        transition: border-color 0.15s ease-in-out; /* 讓邊框顏色變化稍微平滑一點 */
+    }
+    
+    /* 當輸入框被點擊聚焦時，徹底移除淺藍色陰影與外框線 */
+    #id_num:focus {
+        border-color: #0d6efd !important; /* 保持外框變為藍色 */
+        box-shadow: none !important;      /* 移除 Bootstrap 的淺藍陰影 */
+        outline: none !important;         /* 移除瀏覽器預設外框線 */
+    }
 
-<h3><b>第{{ player.round_number }}回合</b></h3>
+    /* 統一調整提示框樣式（採用粉紅底紅邊） */
+    #time-warning, #error-warning {
+        margin: 15px 0; 
+        border: 2px solid #dc3545; 
+        padding: 12px; 
+        border-radius: 8px; 
+        background-color: #fff5f5;
+    }
+</style>
+{% endblock %}
 
-<div id="time-warning" style="display: none; color: red; font-weight: bold; margin: 10px 0; border: 1px solid red; padding: 10px;">
+{% block content %}
+<!-- 標題改為預設靠左對齊 -->
+<h3 class="mb-4"><b>第{{ player.round_number }}回合</b></h3>
+
+<!-- 錯誤提示區塊：預設隱藏 -->
+<div id="error-warning" style="display: none; color: #dc3545; font-weight: bold;">
+    請先選擇數字！
+</div>
+
+<!-- 90 秒超時提醒區塊：預設隱藏 -->
+<div id="time-warning" style="display: none; color: #dc3545; font-weight: bold;">
     請盡快選擇數字！
 </div>
 
-    {{ formfields }}
-    {{ next_button }}
+<!-- 提示文字改為預設靠左對齊 -->
+<p>請選擇您的數字</p>
 
+<!-- 輸入框外層改為靠左對齊 -->
+<div class="mb-4">
+    {{ form.num }}
+</div>
 
-{{ endblock }}
+<!-- 唯獨 Next 按鈕維持水平置中 -->
+<div class="d-flex justify-content-center mt-4">
+    <button type="button" class="btn btn-primary otree-next-button" id="custom-next-btn">Next</button>
+</div>
+{% endblock %}
 
 {% block scripts %}
 <script>
+    document.addEventListener("DOMContentLoaded", function() {
+        const otreeInput = document.getElementById('id_num'); // 抓取 oTree 自動生成的輸入框
+        const errorWarning = document.getElementById('error-warning');
+        const timeWarning = document.getElementById('time-warning');
+        const form = document.querySelector('form');
+        const customNextBtn = document.getElementById('custom-next-btn');
+
+        // 💡 覆蓋邏輯：當受試者手動輸入或變更內容時，立刻清空清除所有提示訊息
+        function clearWarnings() {
+            if (errorWarning) errorWarning.style.display = 'none';
+            if (timeWarning) timeWarning.style.display = 'none';
+        }
+
+        if (otreeInput) {
+            otreeInput.addEventListener('input', clearWarnings);
+            otreeInput.addEventListener('change', clearWarnings);
+        }
+
+        // 控制自訂按鈕的點擊行為
+        if (customNextBtn && form) {
+            customNextBtn.addEventListener('click', function(e) {
+                // 如果輸入框不存在、沒有值、或是只輸入了空白
+                if (!otreeInput || !otreeInput.value || otreeInput.value.trim() === "") {
+                    // 💡 覆蓋邏輯：點擊 Next 報錯時，直接強制隱藏超時訊息，讓錯誤訊息覆蓋它
+                    if (timeWarning) {
+                        timeWarning.style.display = 'none';
+                    }
+                    if (errorWarning) {
+                        errorWarning.style.display = 'block';
+                        window.scrollTo(0, 0); // 瞬間置頂，絕無動畫延遲
+                    }
+                } else {
+                    // 通過驗證，以最快速度送出表單
+                    form.submit();
+                }
+            });
+        }
+    });
+
+    // 90 秒超時提醒邏輯
     setTimeout(function() {
-        document.getElementById('time-warning').style.display = 'block';
+        const errorWarning = document.getElementById('error-warning');
+        const timeWarning = document.getElementById('time-warning');
+        
+        // 💡 覆蓋邏輯：時間到了之後，不論目前有沒有錯誤訊息，直接強制隱藏錯誤訊息，讓超時訊息覆蓋它
+        if (errorWarning) {
+            errorWarning.style.display = 'none';
+        }
+        if (timeWarning) {
+            timeWarning.style.display = 'block';
+            window.scrollTo(0, 0); // 超時覆蓋時同樣瞬間置頂提示受試者
+        }
     }, 90000); 
 </script>
 {% endblock %}

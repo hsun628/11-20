@@ -1,14 +1,25 @@
 {% extends "global/Page.html" %}
 
-{{ block content }}
+{% block content %}
 
 <h3><b>第{{ player.round_number }}回合</b></h3>
 
+<!-- 錯誤提示區塊 -->
+<div id="error-warning" style="display: none; color: #dc3545; font-weight: bold; margin: 15px 0; border: 2px solid #dc3545; padding: 12px; border-radius: 8px; background-color: #fff5f5;">
+    請先選擇數字！
+</div>
+
+<!-- 90 秒超時提醒區塊 -->
 <div id="time-warning" style="display: none; color: #dc3545; font-weight: bold; margin: 15px 0; border: 2px solid #dc3545; padding: 12px; border-radius: 8px; background-color: #fff5f5;">
     請盡快選擇決策數字！
 </div>
 
 <style>
+    /* 💡 保持一致性：隱藏 oTree 原生頂部的錯誤區塊，避免重複出現 */
+    .otree-form-errors {
+        display: none !important;
+    }
+
     /* 隱藏 oTree 自動渲染的預設輸入框 */
     #hidden-form-wrapper {
         display: none !important;
@@ -18,20 +29,20 @@
     .number-grid {
         display: grid;
         grid-template-columns: repeat(10, 1fr);
-        gap: 30px; /* 保持舒適間距，讓發光陰影更自然 */
+        gap: 30px; 
         max-width: 100%;
         margin: 25px 0;
     }
 
-    /* 【顏色更新】單個格子樣式：改回最標準的一般藍色邊框 */
+    /* 單個格子樣式 */
     .number-box {
-        border: 2px solid #0d6efd; /* 標準一般藍色邊框 */
-        border-radius: 12px;       /* 保持高圓角弧度 */
+        border: 2px solid #0d6efd; 
+        border-radius: 12px;       
         padding: 15px 0;
         text-align: center;
         font-size: 22px;
         font-weight: bold;
-        color: #0d6efd;            /* 未選取時的文字呈現一般標準藍 */
+        color: #0d6efd;            
         cursor: pointer;
         background-color: #ffffff;
         transition: all 0.2s ease-in-out;
@@ -40,24 +51,22 @@
 
     /* 滑鼠懸停特效（未被選取時） */
     .number-box:hover:not(.selected) {
-        background-color: #f0f5ff; /* 淡淡的藍色 hover 背景 */
+        background-color: #f0f5ff; 
         border-color: #0b5ed7;
         transform: scale(1.05);
     }
 
-    /* 【關鍵修改】被選取時的特效：標準一般藍色滿版反白與外發光陰影 */
+    /* 被選取時的特效 */
     .number-box.selected {
-        background-color: #0d6efd !important; /* 標準一般藍色反白背景 */
-        color: white !important;               /* 文字變白 */
+        background-color: #0d6efd !important; 
+        color: white !important;               
         border-color: #0a58ca !important;
-        /* 與圖片一致的一般藍色擴散柔霧陰影 */
         box-shadow: 0 5px 15px rgba(13, 110, 253, 0.45) !important; 
         transform: scale(1.03);
     }
-    
 </style>
 
-<p class="mb-4">請選擇您的數字</p>
+<p>請選擇您的數字</p>
 
 <div id="hidden-form-wrapper">
     {{ form.num }}
@@ -76,11 +85,12 @@
     <div class="number-box" data-value="20">20</div>
 </div>
 
+<!-- 修改關鍵 1：不使用 {{ next_button }}，改用自訂的純前端按鈕，外觀與 oTree 完全一致 -->
 <div class="d-flex justify-content-center mt-4">
-    {{ next_button }}
+    <button type="button" class="btn btn-primary otree-next-button" id="custom-next-btn">Next</button>
 </div>
 
-{{ endblock }}
+{% endblock %}
 
 
 {% block scripts %}
@@ -88,6 +98,10 @@
     document.addEventListener("DOMContentLoaded", function() {
         const boxes = document.querySelectorAll('.number-box');
         const otreeInput = document.getElementById('id_num');
+        const errorWarning = document.getElementById('error-warning');
+        const timeWarning = document.getElementById('time-warning');
+        const form = document.querySelector('form');
+        const customNextBtn = document.getElementById('custom-next-btn');
 
         // 將原生 input 改為 hidden 類型
         if (otreeInput) {
@@ -109,16 +123,29 @@
                 if (otreeInput) {
                     otreeInput.value = this.getAttribute('data-value');
                 }
+
+                // 💡 覆蓋邏輯：一旦受試者做出選擇，清空清除所有提示訊息
+                if (errorWarning) errorWarning.style.display = 'none';
+                if (timeWarning) timeWarning.style.display = 'none';
             });
         });
 
-        // 點擊 oTree 原生下一頁按鈕時的防呆攔截
-        const nextBtn = document.querySelector('.otree-next-button');
-        if (nextBtn) {
-            nextBtn.addEventListener('click', function(e) {
-                if (!otreeInput || !otreeInput.value) {
-                    e.preventDefault();
-                    alert("請先點擊選擇一個數字！");
+        // 修改關鍵 2：控制自訂按鈕的點擊行為
+        if (customNextBtn && form) {
+            customNextBtn.addEventListener('click', function(e) {
+                // 如果沒選數字，直接在前端阻斷，完全不送出表單給後端伺服器
+                if (!otreeInput || !otreeInput.value || otreeInput.value.trim() === "") {
+                    // 💡 覆蓋邏輯：點擊 Next 報錯時，直接強制隱藏超時訊息，讓錯誤訊息覆蓋它
+                    if (timeWarning) {
+                        timeWarning.style.display = 'none';
+                    }
+                    if (errorWarning) {
+                        errorWarning.style.display = 'block';
+                        window.scrollTo(0, 0); // 瞬間置頂
+                    }
+                } else {
+                    // 如果有選數字，立刻以最快速度送出表單，絕不鎖死或延遲
+                    form.submit();
                 }
             });
         }
@@ -126,9 +153,16 @@
 
     // 90 秒超時提醒邏輯
     setTimeout(function() {
-        const warningBox = document.getElementById('time-warning');
-        if (warningBox) {
-            warningBox.style.display = 'block';
+        const errorWarning = document.getElementById('error-warning');
+        const timeWarning = document.getElementById('time-warning');
+        
+        // 💡 覆蓋邏輯：時間到了之後，不論目前有沒有錯誤訊息，直接強制隱藏錯誤訊息，讓超時訊息覆蓋它
+        if (errorWarning) {
+            errorWarning.style.display = 'none';
+        }
+        if (timeWarning) {
+            timeWarning.style.display = 'block';
+            window.scrollTo(0, 0); // 超時覆蓋時同樣瞬間置頂提示受試者
         }
     }, 90000); 
 </script>

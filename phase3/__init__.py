@@ -110,14 +110,20 @@ class reasoning(Page):
     @staticmethod
     def is_displayed(player):
         return player.round_number in C.reasoning_rounds
+
+    @staticmethod
+    def vars_for_template(player):
+        return {
+            'num': player.num  # 讀取受試者在當前回合填寫的數字
+        }
     
     # block forbidden inputs
     @staticmethod
     def error_message(player, values):
         content = values['reason'].strip() # .strip removes leading/trailing blankspace
 
-        if len(content) == 0: # block empty input
-            return "理由欄位不能為空，請輸入您的決策思考過程。"
+        if len(content) == 0: 
+            return "請填寫您的決策理由。"
 
         if len(set(content)) < 3 and len(content) > 0: # block too short, single-word, or repetitive inputs
             return "請勿輸入過短、單一，或重複的文字內容。"
