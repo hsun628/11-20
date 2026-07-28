@@ -40,7 +40,7 @@
 <!-- 標題改為預設靠左對齊 -->
 <h3 class="mb-4"><b>第{{ player.round_number }}回合</b></h3>
 
-<!-- 錯誤提示區塊：預設隱藏 -->
+<!-- 錯誤提示區塊：預設隱藏，文字由下方 JavaScript 在提交時動態決定 -->
 <div id="error-warning" style="display: none; color: #dc3545; font-weight: bold;">
     請先選擇數字！
 </div>
@@ -51,7 +51,7 @@
 </div>
 
 <!-- 提示文字改為預設靠左對齊 -->
-<p>請選擇您的數字</p>
+<p>請選擇您的數字：</p>
 
 <!-- 輸入框外層改為靠左對齊 -->
 <div class="mb-4">
@@ -87,20 +87,34 @@
         // 控制自訂按鈕的點擊行為
         if (customNextBtn && form) {
             customNextBtn.addEventListener('click', function(e) {
-                // 如果輸入框不存在、沒有值、或是只輸入了空白
-                if (!otreeInput || !otreeInput.value || otreeInput.value.trim() === "") {
-                    // 💡 覆蓋邏輯：點擊 Next 報錯時，直接強制隱藏超時訊息，讓錯誤訊息覆蓋它
-                    if (timeWarning) {
-                        timeWarning.style.display = 'none';
-                    }
-                    if (errorWarning) {
-                        errorWarning.style.display = 'block';
-                        window.scrollTo(0, 0); // 瞬間置頂，絕無動畫延遲
-                    }
-                } else {
-                    // 通過驗證，以最快速度送出表單
-                    form.submit();
+                if (!otreeInput || !errorWarning) return;
+
+                const rawValue = otreeInput.value.trim();
+
+                // 1. 檢查是否未填寫
+                if (rawValue === "") {
+                    if (timeWarning) timeWarning.style.display = 'none'; // 隱藏超時提示
+                    errorWarning.innerHTML = "請先選擇數字！";
+                    errorWarning.style.display = 'block';
+                    window.scrollTo(0, 0); // 瞬間置頂
+                    return; // 阻斷提交
                 }
+
+                // 將輸入字串轉為數字以進行數值驗證
+                const numValue = Number(rawValue);
+
+                // 2. 檢查是否在 0-100 範圍內，以及是否包含小數點（確保為整數）
+                // Number.isInteger 用於排除小數，rawValue.includes('.') 可阻斷像 50.0 這種輸入 (如實驗有嚴格限制的話)
+                if (isNaN(numValue) || numValue < 0 || numValue > 100 || !Number.isInteger(numValue)) {
+                    if (timeWarning) timeWarning.style.display = 'none'; // 隱藏超時提示
+                    errorWarning.innerHTML = "請選擇介於0到100的整數！";
+                    errorWarning.style.display = 'block';
+                    window.scrollTo(0, 0); // 瞬間置頂
+                    return; // 阻斷提交
+                }
+
+                // 通過所有前端 HTML 規則，以最快速度送出表單
+                form.submit();
             });
         }
     });
