@@ -18,7 +18,7 @@ SESSION_CONFIGS = [
         name = '11_20',
         display_name = "11_20",
         num_demo_participants = 4, # if DEBUG else num_participant,
-        app_sequence = ['phase1', 'phase2', 'phase3', 'phase_AI','phase4'],
+        app_sequence = ['phase1', 'phase2', 'phase3', 'phase_AI_prepare', 'phase4'],
     ),
 ]
 

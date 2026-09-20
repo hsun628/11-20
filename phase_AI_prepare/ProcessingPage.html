@@ -1,0 +1,44 @@
+{% extends "global/Page.html" %}
+{% load otree %}
+
+{% block content %}
+    <div class="card shadow-sm">
+        <div class="card-body text-center">
+            <h4 class="mb-4"><b>請稍候，AI正在生成及判斷理由</b></h4>
+            <div class="spinner-border text-primary m-4" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p id="status-msg" class="text-center text-muted">
+                AI正在處理中，完成後將直接進入實驗第四部分。
+            </p>
+        </div>
+    </div>
+
+    <button id="auto-submit" style="display: none;" class="otree-btn-next btn btn-primary">Next</button>
+
+    <script>
+        window.onload = function() {
+            const statusMsg = document.getElementById("status-msg");
+            let checkTimer = null;
+
+            window.liveRecv = function(data) {
+                if (data.status === "finished") {
+                    clearInterval(checkTimer);
+                    statusMsg.innerText = "AI已處理完畢，正在進入第四部分。";
+                    document.getElementById("form").submit();
+                }
+                if (data.status === "error") {
+                    if (checkTimer !== null) {
+                        clearInterval(checkTimer);
+                    }
+                    statusMsg.innerText = data.message || "AI理由生成失敗，請舉手告知實驗人員處理。";
+                }
+            };
+
+            liveSend({"type": "API_start"});
+            checkTimer = setInterval(function() {
+                liveSend({"type": "check_status"});
+            }, 3000);
+        };
+    </script>
+{% endblock %}
