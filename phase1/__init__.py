@@ -9,7 +9,7 @@ class C(BaseConstants):
     PLAYERS_PER_GROUP = 2 # if DEBUG else int(num_participant)
     NUM_ROUNDS = 1 if DEBUG else 3
     Correct_Prediction = ["A", "B", "Tie"] # predefined correct predictions (may be randomized)
-    Prediction_Reward = cu(20)
+    Prediction_Reward = cu(50)
 
     midterm_examples = {
             1: "明天有期中考，而我目前還有兩個章節沒讀。如果現在睡覺，明天早上很可能來不及複習。雖然熬夜很累，但至少能把重點看完，所以我決定先讀完再睡。",

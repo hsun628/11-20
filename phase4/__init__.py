@@ -8,7 +8,7 @@ class C(BaseConstants):
     NAME_IN_URL = 'after_questionaire'
     PLAYERS_PER_GROUP = 2 # if DEBUG else int(num_participant)
     NUM_ROUNDS = 3 if DEBUG else 10
-    Prediction_Reward = 20
+    Prediction_Reward = 50
     reasoning_rounds_p2 = [1, 3] if DEBUG else [1, 4, 7, 10]
     reasoning_rounds_p3 = [1, 3] if DEBUG else [1, 5, 10]
 
@@ -79,7 +79,7 @@ class InstructionPage(Page):
     def is_displayed(player):
         return player.round_number == 1
 
-class questionaireStartWaitPage(WaitPage):
+class StartWaitPage(WaitPage):
     title_text = "請等待其他受試者完成準備"
 
     wait_for_all_groups = True
@@ -184,6 +184,45 @@ class Results(Page):
             "reasoning_round_num": reasoning_round_num
         }
 
+class AIResults(Page):
+    @staticmethod
+    def is_displayed(player):
+        return player.round_number == C.NUM_ROUNDS
+
+    @staticmethod
+    def vars_for_template(player):
+        phase2_history = player.participant.vars.get("phase2_history", [])
+        phase2_round_payoffs = player.participant.vars.get("phase2_round_payoffs", {})
+        for entry in phase2_history:
+            entry["is_reasoning_round"] = entry.get("round") in C.reasoning_rounds_p2
+            entry["result_text"] = entry.get("result_text", "-")
+            if entry.get("final_payoff") is None:
+                entry["final_payoff"] = cu(
+                    phase2_round_payoffs.get(entry.get("round"), 0)
+                )
+
+        phase3_history = player.participant.vars.get("phase3_history", [])
+        phase3_round_payoffs = player.participant.vars.get("phase3_round_payoffs", {})
+        for entry in phase3_history:
+            entry["is_reasoning_round"] = entry.get("round") in C.reasoning_rounds_p3
+            entry["result_text_2"] = entry.get("result_text_2", "-")
+            entry["bonus"] = entry.get("bonus", entry.get("bonus_2", False))
+            if entry.get("final_payoff_2") is None:
+                entry["final_payoff_2"] = cu(
+                    phase3_round_payoffs.get(entry.get("round"), 0)
+                )
+
+        return {
+            "phase2_history": phase2_history,
+            "phase3_history": phase3_history,
+            "total_phase2_payoff": player.participant.vars.get(
+                "total_phase2_payoff", 0
+            ),
+            "total_phase3_payoff": player.participant.vars.get(
+                "total_phase3_payoff", 0
+            ),
+        }
+
 class Payoff(Page):
     title_text = "感謝您參加本實驗，請確認您的報酬金額。"
 
@@ -191,10 +230,29 @@ class Payoff(Page):
     def vars_for_template(player):
         if player.round_number == C.NUM_ROUNDS:
             if 'points_before_fee' not in player.participant.vars:
-                player.participant.vars['points_before_fee'] = player.participant.payoff
+                original_phase2 = player.participant.vars.get("phase2_sum_payoffs", 0)
+                original_phase3 = player.participant.vars.get("phase3_sum_payoffs", 0)
+                adjusted_phase2 = player.participant.vars.get(
+                    "total_phase2_payoff", original_phase2
+                )
+                adjusted_phase3 = player.participant.vars.get(
+                    "total_phase3_payoff", original_phase3
+                )
+                adjustment = (
+                    adjusted_phase2
+                    - original_phase2
+                    + adjusted_phase3
+                    - original_phase3
+                )
+                player.participant.vars['points_before_fee'] = (
+                    player.participant.payoff + adjustment
+                )
             
             if not player.participant.vars.get("fee_added"):
-                player.participant.payoff = player.participant.payoff*C.exchange_rate + cu(C.participation_fee)
+                player.participant.payoff = (
+                    player.participant.vars['points_before_fee'] * C.exchange_rate
+                    + cu(C.participation_fee)
+                )
                 player.participant.vars["fee_added"] = True
 
         return {
@@ -213,10 +271,11 @@ class redirect_to_form(Page):
 
 page_sequence = [
     InstructionPage,
-    questionaireStartWaitPage,
+    StartWaitPage,
     Prediction,
     PredictionWaitPage,
     Results,
+    AIResults,
     Payoff,
     redirect_to_form
 ]

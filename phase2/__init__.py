@@ -8,7 +8,7 @@ class C(BaseConstants):
     NAME_IN_URL = 'phase2'
     PLAYERS_PER_GROUP = 2
     NUM_ROUNDS = 3 if DEBUG else 10
-    reasoning_rounds = [1, 3] if DEBUG else [1, 4, 7, 10]
+    reasoning_rounds = [1, 3] if DEBUG else [1, 5, 10]
 
 class Subsession(BaseSubsession):
     pass
