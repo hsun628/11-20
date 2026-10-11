@@ -23,8 +23,6 @@ class C(BaseConstants):
     NUM_ROUNDS = 3 if DEBUG else 10
     Pass_Reward_p2 = 40
     Pass_Reward_p3 = 40
-    reasoning_rounds_p2 = [1, 3] if DEBUG else [1, 4, 7, 10]
-    reasoning_rounds_p3 = [1, 3] if DEBUG else [1, 5, 10]
 
     experimental_rules = """
         * Part II consists of 10 rounds. At the beginning of this part, the computer will randomly assign all participants into groups of two.
@@ -205,6 +203,14 @@ class Player(BasePlayer):
         phase3_history = [dict(h) for h in participant_vars.get("phase3_history", [])]
         phase2_lookup = {h["round"]: h for h in phase2_history}
         phase3_lookup = {h["round"]: h for h in phase3_history}
+        reasoning_rounds_p2 = participant_vars.get(
+            "phase2_reasoning_rounds",
+            [h["round"] for h in phase2_history if h.get("is_reasoning_round")],
+        )
+        reasoning_rounds_p3 = participant_vars.get(
+            "phase3_reasoning_rounds",
+            [h["round"] for h in phase3_history if h.get("is_reasoning_round")],
+        )
         phase2_payoffs = participant_vars.get("phase2_round_payoffs", {})
         phase3_payoffs = participant_vars.get("phase3_round_payoffs", {})
         final_phase2 = {r: cu(phase2_payoffs.get(r, 0)) for r in range(1, C.NUM_ROUNDS + 1)}
@@ -218,7 +224,7 @@ class Player(BasePlayer):
                 current = phase2_lookup.get(r)
                 human_reason = str(participant_vars.get(f"reason_{r}") or "").strip()
                 human_num = participant_vars.get(f"num_{r}")
-                if r in C.reasoning_rounds_p2 and current and human_reason and human_num is not None:
+                if r in reasoning_rounds_p2 and current and human_reason and human_num is not None:
                     target_is_flipped = random.choice([True, False])
                     gpt_reason = current.get("gpt_reason") or gpt_generate(C.experimental_rules, r, human_num)
                     winner, analysis = gpt_judge(C.experimental_rules, human_reason, gpt_reason, target_is_flipped)
@@ -240,7 +246,7 @@ class Player(BasePlayer):
                 current = phase3_lookup.get(r)
                 human_reason = str(participant_vars.get(f"reason_2_{r}") or "").strip()
                 human_num = participant_vars.get(f"num_2_{r}")
-                if r in C.reasoning_rounds_p3 and current and human_reason and human_num is not None:
+                if r in reasoning_rounds_p3 and current and human_reason and human_num is not None:
                     target_is_flipped = random.choice([True, False])
                     gpt_reason = current.get("gpt_reason_2") or gpt_generate(C.experimental_rules_2, r, human_num)
                     winner, analysis = gpt_judge(C.experimental_rules_2, human_reason, gpt_reason, target_is_flipped)
@@ -300,6 +306,12 @@ class ProcessingPage(Page):
             if not player.is_gpt_finished and p_id not in _thread_storage:
                 participant_vars = dict(player.participant.vars)
                 participant_vars["id_in_subsession"] = p_id
+                participant_vars["phase2_reasoning_rounds"] = player.session.vars[
+                    "phase2_reasoning_rounds"
+                ]
+                participant_vars["phase3_reasoning_rounds"] = player.session.vars[
+                    "phase3_reasoning_rounds"
+                ]
                 thread = threading.Thread(target=player.gpt_process, args=(participant_vars,))
                 thread.daemon = True
                 thread.start()

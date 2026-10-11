@@ -24,6 +24,9 @@ similar to phase1
 #### after_questionaire:
 similar to phase1
 
+#### Reasoning rounds
+Part II and Part III each draw one reasoning round from every interval in `reasoning_rounds.REASONING_ROUND_RANGES`. Update that shared setting to adjust the intervals; selected rounds are saved separately per part and reused for AI processing and the final phase.
+
 ***
 
 ### setup instructions:

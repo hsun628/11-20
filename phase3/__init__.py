@@ -2,6 +2,7 @@
 
 from otree.api import *
 from settings import DEBUG
+from reasoning_rounds import draw_reasoning_rounds
 # from settings import num_participant
 import random
 
@@ -10,10 +11,18 @@ class C(BaseConstants):
     PLAYERS_PER_GROUP = 2 #if DEBUG else int(num_participant)
     NUM_ROUNDS = 3 if DEBUG else 10
     Winner_Reward = 100
-    reasoning_rounds = [1, 3] if DEBUG else [1, 5, 10]
 
 class Subsession(BaseSubsession):
     pass
+
+def creating_session(subsession):
+    if subsession.round_number == 1:
+        subsession.session.vars['phase3_reasoning_rounds'] = draw_reasoning_rounds(
+            C.NUM_ROUNDS
+        )
+
+def reasoning_rounds_for(player):
+    return player.session.vars['phase3_reasoning_rounds']
 
 class Group(BaseGroup):
     mean_number = models.FloatField()
@@ -44,9 +53,10 @@ def set_payoffs(subsession: Subsession): # because we use wait_for_all_groups
                 p.payoff = cu(0)
 
             p.participant.vars[f'num_2_{p.round_number}'] = p.num
-            p.participant.vars[f'reason_2_{p.round_number}'] = p.reason if p.round_number in C.reasoning_rounds else None
+            p.participant.vars[f'reason_2_{p.round_number}'] = p.reason if p.round_number in reasoning_rounds_for(p) else None
             p.participant.vars[f'payoff_2_{p.round_number}'] = p.payoff
             p.participant.vars[f'bonus_2_{p.round_number}'] = p.bonus_2
+            p.participant.vars['phase3_reasoning_rounds'] = reasoning_rounds_for(p)
 
 class Player(BasePlayer):
     distance = models.FloatField()
@@ -57,7 +67,8 @@ class Player(BasePlayer):
     )
     reason = models.LongStringField(
         label = "請說明您選擇該數字的理由：",
-        initial = ""
+        initial = "",
+        rows = 5
     )
     bonus_2 = models.BooleanField(
         initial = False
@@ -93,29 +104,17 @@ class p_beauty(Page):
     form_model = 'player'
     form_fields = ['num']
 
-class reasoning_roundsWaitPage(WaitPage):
-    title_text = "請等待所有受試者完成決策"
-    
-    wait_for_all_groups = True # wait for all groups before revealing reasoning rounds
-
     @staticmethod
     def is_displayed(player):
-        return player.round_number in C.reasoning_rounds
+        return player.round_number not in reasoning_rounds_for(player)
 
-
-class reasoning(Page):
+class p_beauty_reasoning(Page):
     form_model = 'player'
-    form_fields = ['reason']
+    form_fields = ['num', 'reason']
 
     @staticmethod
     def is_displayed(player):
-        return player.round_number in C.reasoning_rounds
-
-    @staticmethod
-    def vars_for_template(player):
-        return {
-            'num': player.num  # 讀取受試者在當前回合填寫的數字
-        }
+        return player.round_number in reasoning_rounds_for(player)
     
     # block forbidden inputs
     @staticmethod
@@ -140,6 +139,7 @@ class Results(Page):
     def vars_for_template(player):
         player_history = player.in_all_rounds()
         history = []
+        reasoning_rounds = reasoning_rounds_for(player)
 
         for p in player_history:
             g = p.group
@@ -148,9 +148,9 @@ class Results(Page):
                 'num': f"{player.in_round(p.round_number).num}",
                 'mean': f"{g.mean_number:.2f}",
                 "target": f"{g.target_number:.2f}",
-                "reason": player.in_round(p.round_number).reason if g.round_number in C.reasoning_rounds else None,
+                "reason": player.in_round(p.round_number).reason if g.round_number in reasoning_rounds else None,
                 'is_current': p.round_number == player.round_number,
-                'is_reasoning_round': p.round_number in C.reasoning_rounds,
+                'is_reasoning_round': p.round_number in reasoning_rounds,
                 'bonus': player.in_round(p.round_number).bonus_2,
                 'round_payoff': player.in_round(p.round_number).payoff
             })
@@ -177,8 +177,7 @@ page_sequence = [
     InstructionPage, 
     Phase3StartWaitPage,
     p_beauty, 
-    reasoning_roundsWaitPage,
-    reasoning,
+    p_beauty_reasoning,
     DecisionWaitPage,
     Results,
     ResultsWaitPage

@@ -9,11 +9,15 @@ class C(BaseConstants):
     PLAYERS_PER_GROUP = 2 # if DEBUG else int(num_participant)
     NUM_ROUNDS = 3 if DEBUG else 10
     Prediction_Reward = 50
-    reasoning_rounds_p2 = [1, 3] if DEBUG else [1, 4, 7, 10]
-    reasoning_rounds_p3 = [1, 3] if DEBUG else [1, 5, 10]
 
     exchange_rate = 0.25   # exchange rate for NTD
     participation_fee = 150
+
+def reasoning_rounds_p2_for(player):
+    return player.session.vars["phase2_reasoning_rounds"]
+
+def reasoning_rounds_p3_for(player):
+    return player.session.vars["phase3_reasoning_rounds"]
 
 class Subsession(BaseSubsession):
     def creating_session(self):
@@ -26,7 +30,7 @@ class Group(BaseGroup):
 def calculate_results(group:Group):
     for p in group.get_players():
 
-        if p.round_number not in C.reasoning_rounds_p2 or p.field_maybe_none("tp_id") is None:
+        if p.round_number not in reasoning_rounds_p2_for(p) or p.field_maybe_none("tp_id") is None:
             p.payoff = cu(0)
             continue
 
@@ -90,7 +94,7 @@ class Prediction(Page):
 
     @staticmethod
     def is_displayed(player):
-        if player.round_number in C.reasoning_rounds_p2:
+        if player.round_number in reasoning_rounds_p2_for(player):
             if player.field_maybe_none("is_flipped") is None:
                 player.is_flipped = random.choice([True, False])
             return True
@@ -123,7 +127,7 @@ class Prediction(Page):
         player.participant.vars[f"reason_a_{player.round_number}"] = reason_a
         player.participant.vars[f"reason_b_{player.round_number}"] = reason_b
 
-        reasoning_round_num = C.reasoning_rounds_p2.index(player.round_number) + 1
+        reasoning_round_num = reasoning_rounds_p2_for(player).index(player.round_number) + 1
 
         return {
             "round_number": player.round_number,
@@ -140,7 +144,7 @@ class PredictionWaitPage(WaitPage):
     
     @staticmethod
     def is_displayed(player):
-        return player.round_number in C.reasoning_rounds_p2
+        return player.round_number in reasoning_rounds_p2_for(player)
 
     after_all_players_arrive = 'calculate_results'
 
@@ -148,7 +152,7 @@ class PredictionWaitPage(WaitPage):
 class Results(Page):
     @staticmethod
     def is_displayed(player):
-        return player.round_number in C.reasoning_rounds_p2
+        return player.round_number in reasoning_rounds_p2_for(player)
     
     @staticmethod
     def vars_for_template(player):
@@ -173,7 +177,7 @@ class Results(Page):
 
         result_text = "正確" if is_correct else "錯誤"
 
-        reasoning_round_num = C.reasoning_rounds_p2.index(player.round_number) + 1
+        reasoning_round_num = reasoning_rounds_p2_for(player).index(player.round_number) + 1
 
         return {
             "reason_a": player.participant.vars[f"reason_a_{player.round_number}"],
@@ -193,8 +197,9 @@ class AIResults(Page):
     def vars_for_template(player):
         phase2_history = player.participant.vars.get("phase2_history", [])
         phase2_round_payoffs = player.participant.vars.get("phase2_round_payoffs", {})
+        reasoning_rounds_p2 = reasoning_rounds_p2_for(player)
         for entry in phase2_history:
-            entry["is_reasoning_round"] = entry.get("round") in C.reasoning_rounds_p2
+            entry["is_reasoning_round"] = entry.get("round") in reasoning_rounds_p2
             entry["result_text"] = entry.get("result_text", "-")
             if entry.get("final_payoff") is None:
                 entry["final_payoff"] = cu(
@@ -203,8 +208,9 @@ class AIResults(Page):
 
         phase3_history = player.participant.vars.get("phase3_history", [])
         phase3_round_payoffs = player.participant.vars.get("phase3_round_payoffs", {})
+        reasoning_rounds_p3 = reasoning_rounds_p3_for(player)
         for entry in phase3_history:
-            entry["is_reasoning_round"] = entry.get("round") in C.reasoning_rounds_p3
+            entry["is_reasoning_round"] = entry.get("round") in reasoning_rounds_p3
             entry["result_text_2"] = entry.get("result_text_2", "-")
             entry["bonus"] = entry.get("bonus", entry.get("bonus_2", False))
             if entry.get("final_payoff_2") is None:

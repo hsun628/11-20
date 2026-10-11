@@ -1,0 +1,146 @@
+{% extends "global/Page.html" %}
+{% load otree %}
+
+{% block styles %}
+<style>
+    .otree-form-errors {
+        display: none !important;
+    }
+
+    #id_reason {
+        min-height: 200px;
+        width: 100%;
+        padding: 15px;
+        font-size: 16px;
+        border: 2px solid #ced4da;
+        border-radius: 8px;
+        line-height: 1.6;
+    }
+
+    .number-grid {
+        display: grid;
+        grid-template-columns: repeat(10, 1fr);
+        gap: 30px; 
+        max-width: 100%;
+        margin: 25px 0;
+    }
+
+    .number-box {
+        border: 2px solid #0d6efd; 
+        border-radius: 12px;       
+        padding: 15px 0;
+        text-align: center;
+        font-size: 22px;
+        font-weight: bold;
+        color: #0d6efd;            
+        cursor: pointer;
+        background-color: #ffffff;
+        transition: all 0.2s ease-in-out;
+        user-select: none;
+    }
+
+    .number-box:hover:not(.selected) {
+        background-color: #f0f5ff; 
+        border-color: #0b5ed7;
+        transform: scale(1.05);
+    }
+
+    .number-box.selected {
+        background-color: #0d6efd !important; 
+        color: white !important;               
+        border-color: #0a58ca !important;
+        box-shadow: 0 5px 15px rgba(13, 110, 253, 0.45) !important; 
+        transform: scale(1.03);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<h3 class="mb-4"><b>第{{ player.round_number }}回合</b></h3>
+<p class="mb-4">此回合為<b>額外說明回合</b>。</p>
+
+<div id="error-warning" class="alert alert-danger" style="display:none;"></div>
+<div id="time-warning" class="alert alert-danger" style="display:none;">
+    請盡快完成決策與理由填寫！
+</div>
+
+<p>請選擇您的數字：</p>
+<div style="display:none;">{{ form.num }}</div>
+<div class="number-grid">
+    {% for number in number_choices %}
+        <button type="button" class="number-box" data-value="{{ number }}">{{ number }}</button>
+    {% endfor %}
+</div>
+
+<label for="id_reason" class="form-label">請說明您選擇該數字的理由：</label>
+{{ form.reason }}
+
+<div class="d-flex justify-content-center mt-4">
+    <button type="button" class="btn btn-primary otree-next-button" id="custom-next-btn">Next</button>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        const numberInput = document.getElementById("id_num");
+        const reasonInput = document.getElementById("id_reason");
+        const errorWarning = document.getElementById("error-warning");
+        const timeWarning = document.getElementById("time-warning");
+        const form = document.querySelector("form");
+        const nextButton = document.getElementById("custom-next-btn");
+        const boxes = document.querySelectorAll(".number-box");
+
+        numberInput.type = "hidden";
+
+        function clearWarnings() {
+            errorWarning.style.display = "none";
+            timeWarning.style.display = "none";
+        }
+
+        const initiallySelected = document.querySelector(
+            '.number-box[data-value="' + numberInput.value + '"]'
+        );
+        if (initiallySelected) {
+            initiallySelected.classList.add("selected");
+        }
+
+        boxes.forEach(function(box) {
+            box.addEventListener("click", function() {
+                boxes.forEach(function(item) {
+                    item.classList.remove("selected");
+                });
+                box.classList.add("selected");
+                numberInput.value = box.dataset.value;
+                clearWarnings();
+            });
+        });
+
+        reasonInput.addEventListener("input", clearWarnings);
+
+        nextButton.addEventListener("click", function() {
+            const reason = reasonInput.value.trim();
+            if (!numberInput.value) {
+                errorWarning.textContent = "請先選擇數字！";
+            } else if (!reason) {
+                errorWarning.textContent = "請填寫您的決策理由！";
+            } else if (new Set(reason).size < 3) {
+                errorWarning.textContent = "請勿輸入過短、單一，或重複的文字內容。";
+            } else {
+                form.submit();
+                return;
+            }
+
+            timeWarning.style.display = "none";
+            errorWarning.style.display = "block";
+            window.scrollTo(0, 0);
+        });
+
+        setTimeout(function() {
+            errorWarning.style.display = "none";
+            timeWarning.style.display = "block";
+            window.scrollTo(0, 0);
+        }, 180000);
+    });
+</script>
+{% endblock %}

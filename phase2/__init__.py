@@ -2,21 +2,25 @@
 
 from otree.api import *
 from settings import DEBUG
+from reasoning_rounds import draw_reasoning_rounds
 # from settings import num_participant
 
 class C(BaseConstants):
     NAME_IN_URL = 'phase2'
     PLAYERS_PER_GROUP = 2
     NUM_ROUNDS = 3 if DEBUG else 10
-    reasoning_rounds = [1, 3] if DEBUG else [1, 5, 10]
-
 class Subsession(BaseSubsession):
     pass
 
 def creating_session(subsession):
+    if subsession.round_number == 1:
+        subsession.session.vars['phase2_reasoning_rounds'] = draw_reasoning_rounds(
+            C.NUM_ROUNDS
+        )
     subsession.group_randomly()
 
-import random
+def reasoning_rounds_for(player):
+    return player.session.vars['phase2_reasoning_rounds']
 
 class Group(BaseGroup):
     pass
@@ -35,8 +39,11 @@ def set_payoffs(group: Group): # because we use wait_for_all_groups
 
         p.participant.vars[f"num_{p.round_number}"] = p.num
         p.participant.vars[f"other_num_{p.round_number}"] = other.num
-        p.participant.vars[f"reason_{p.round_number}"] = p.reason if p.round_number in C.reasoning_rounds else None
+        p.participant.vars[f"reason_{p.round_number}"] = (
+            p.reason if p.round_number in reasoning_rounds_for(p) else None
+        )
         p.participant.vars[f"bonus_{p.round_number}"] = p.bonus
+        p.participant.vars['phase2_reasoning_rounds'] = reasoning_rounds_for(p)
 
 class Player(BasePlayer):
     num = models.IntegerField(
@@ -50,7 +57,8 @@ class Player(BasePlayer):
     )
     reason = models.LongStringField(
         label = "請說明您選擇該數字的理由：",
-        initial = ""
+        initial = "",
+        rows = 3
     )
     bonus = models.BooleanField(
         initial = False
@@ -80,23 +88,22 @@ class game(Page):
     form_model = 'player'
     form_fields = ['num']
 
-class reasoning_roundsWaitPage(WaitPage):
-    title_text = "請等待所有受試者完成決策"
-    
-    wait_for_all_groups = True # wait for all groups before revealing reasoning rounds
-
     @staticmethod
     def is_displayed(player):
-        return player.round_number in C.reasoning_rounds
+        return player.round_number not in reasoning_rounds_for(player)
 
-class reasoning(Page):
+class game_with_reason(Page):
     form_model = 'player'
-    form_fields = ['reason']
+    form_fields = ['num', 'reason']
 
     @staticmethod
     def is_displayed(player):
-        return player.round_number in C.reasoning_rounds
-    
+        return player.round_number in reasoning_rounds_for(player)
+
+    @staticmethod
+    def vars_for_template(player):
+        return {"number_choices": range(11, 21)}
+
     # block forbidden inputs
     @staticmethod
     def error_message(player, values):
@@ -120,15 +127,19 @@ class Results(Page):
     def vars_for_template(player):
         player_history = player.in_all_rounds()
         history = []
+        reasoning_rounds = reasoning_rounds_for(player)
 
         for p in player_history:
             history.append({
                 'round': p.round_number,
                 'num': f"{player.in_round(p.round_number).num}",
                 "other_num": f"{player.in_round(p.round_number).other_num}",
-                "reason": player.in_round(p.round_number).reason if p.round_number in C.reasoning_rounds else None,
+                "reason": (
+                    player.in_round(p.round_number).reason
+                    if p.round_number in reasoning_rounds else None
+                ),
                 'is_current': p.round_number == player.round_number,
-                'is_reasoning_round': p.round_number in C.reasoning_rounds,
+                'is_reasoning_round': p.round_number in reasoning_rounds,
                 'bonus': player.in_round(p.round_number).bonus,
                 'round_payoff': player.in_round(p.round_number).payoff
             })
@@ -155,8 +166,7 @@ page_sequence = [
     InstructionPage, 
     Phase2StartWaitPage,
     game, 
-    reasoning_roundsWaitPage,
-    reasoning,
+    game_with_reason,
     DecisionWaitPage,
     Results,
     ResultsWaitPage

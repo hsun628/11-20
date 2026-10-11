@@ -1,0 +1,74 @@
+{% extends "global/Page.html" %}
+{% load otree %}
+
+{% block styles %}
+<style>
+    .otree-form-errors {
+        display: none !important;
+    }
+    
+    #id_num {
+        width: 100px !important;     
+        max-width: 100%;
+        font-size: 1rem;          
+        padding: 8px;
+        border: 2px solid #ced4da;
+        border-radius: 8px;
+        transition: border-color 0.15s ease-in-out; /* 讓邊框顏色變化稍微平滑一點 */
+    }
+    
+    /* 當輸入框被點擊聚焦時，徹底移除淺藍色陰影與外框線 */
+    #id_num:focus {
+        border-color: #0d6efd !important; /* 保持外框變為藍色 */
+        box-shadow: none !important;      /* 移除 Bootstrap 的淺藍陰影 */
+        outline: none !important;         /* 移除瀏覽器預設外框線 */
+    }
+
+    /* 統一調整提示框樣式（採用粉紅底紅邊） */
+    #time-warning, #error-warning {
+        margin: 15px 0; 
+        border: 2px solid #dc3545; 
+        padding: 12px; 
+        border-radius: 8px; 
+        background-color: #fff5f5;
+    }
+
+    textarea {
+        display: block;
+        width: 100%;
+        min-height: 1000px;
+        max-width: 100%;
+        padding: 15px;
+        font-size: 16px;
+        font-family: inherit;
+        line-height: 1.8;
+        color: #212529;
+        background-color: #fff;
+        border: 2px solid #ced4da;
+        border-radius: 8px;
+        box-sizing: border-box;
+        resize: vertical;
+        overflow-y: auto;
+        transition: border-color 0.15s ease-in-out;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<h3 class="mb-4"><b>第{{ player.round_number }}回合</b></h3>
+<p class="mb-4">此回合為<b>額外說明回合</b>。</p>
+
+<div class="mb-4">
+    <label for="id_num">請選擇您的數字：</label>
+    {{ form.num }}
+</div>
+
+<div class="mb-4">
+    <label for="id_reason">請說明您選擇該數字的理由：</label>
+    {{ form.reason }}
+</div>
+
+<div class="d-flex justify-content-center mt-4">
+    {% next_button %}
+</div>
+{% endblock %}
