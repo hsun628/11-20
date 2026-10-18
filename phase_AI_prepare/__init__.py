@@ -26,15 +26,18 @@ class C(BaseConstants):
 
     experimental_rules = """
         * Part II consists of 10 rounds. At the beginning of this part, the computer will randomly assign all participants into groups of two.
-        * In each round, both you and the other participant in your group (hereafter referred to as your "opponent") must choose an integer between 11 and 20. Both you and the opponent will receive an amount of experimental currency equal to the number each chooses. If your chosen number is exactly one less than your opponent's, then you are the "winner" and will receive an additional 20 units of experimental currency.
-        * At the end of each round, the computer will display both players' chosen numbers for that round, whether you are the winner, and your payoff for each round.
+        * In each round, both you and the other participant in your group (hereafter referred to as your "opponent") first choose an integer between 11 and 20. In reasoning rounds, you may optionally choose a different number on the following page and then explain the reason for your final choice.
+        * For the number-based payoff in a reasoning round, your final number is compared with your opponent's original number, regardless of whether your opponent later changes their choice. You receive experimental currency equal to your final number, plus 20 units if it is exactly one less than your opponent's original number.
+        * In reasoning rounds, the payoff is determined with equal probability by the AI's comparison of your reason with an AI-generated reason, or by the number-based payoff above. Other rounds use the number-based payoff.
+        * At the end of each round, the computer will display both players' original choices and the result; reasoning-round payoffs are finalized after the AI assessment.
         """
     experimental_rules_2 = """
         * Part III consists of 10 rounds. At the beginning, the computer randomly divides all participants into groups, and the number of participants in each group will be displayed on the screen.
-        * In each round, all participants in your group must choose an integer between 0 and 100.
-        * The average of all numbers chosen by participants in your group is called the "Average Number."
-        * The person whose choice is closest to **0.7 times the Average Number** (called the "Target Number") is the "winner" of the round and will receive a 100 units of experimental currency. In the event of a tie, the computer will randomly select one winner.
-        * After each round ends, the computer will display the past "Average Number" and "Target Number" for your group, whether you are the winner, and your payoff for each round.
+        * In each round, all participants in your group first choose an integer between 0 and 100. In reasoning rounds, you may optionally choose a different number on the following page and then explain the reason for your final choice.
+        * Each participant's Target Number is 0.7 times the average of that participant's final number and their opponent's original number.
+        * Each participant compares their final number with their opponent's original number against their own Target Number. Anyone whose number is at least as close as their opponent's original number receives 100 units of experimental currency; both may receive the reward if equally close.
+        * In reasoning rounds, the payoff is determined with equal probability by the AI's comparison of your reason with an AI-generated reason, or by the number-based payoff above. Other rounds use the number-based payoff.
+        * The computer displays the group Average Number, your individual Target Number, whether you are a number-based winner, and the payoff for each round.
         """
 
 
@@ -190,6 +193,8 @@ _thread_storage = {}
 
 class Player(BasePlayer):
     is_gpt_finished = models.BooleanField(initial=False)
+    payoff_by_reasoning = models.BooleanField(blank=True)
+    payoff_by_reasoning_2 = models.BooleanField(blank=True)
     gpt_reason = models.LongStringField()
     gpt_analysis = models.LongStringField()
     winner_type = models.StringField()
@@ -211,6 +216,12 @@ class Player(BasePlayer):
             "phase3_reasoning_rounds",
             [h["round"] for h in phase3_history if h.get("is_reasoning_round")],
         )
+        payoff_by_reasoning_by_round = {
+            r: random.choice([True, False]) for r in reasoning_rounds_p2
+        }
+        payoff_by_reasoning_2_by_round = {
+            r: random.choice([True, False]) for r in reasoning_rounds_p3
+        }
         phase2_payoffs = participant_vars.get("phase2_round_payoffs", {})
         phase3_payoffs = participant_vars.get("phase3_round_payoffs", {})
         final_phase2 = {r: cu(phase2_payoffs.get(r, 0)) for r in range(1, C.NUM_ROUNDS + 1)}
@@ -229,17 +240,25 @@ class Player(BasePlayer):
                     gpt_reason = current.get("gpt_reason") or gpt_generate(C.experimental_rules, r, human_num)
                     winner, analysis = gpt_judge(C.experimental_rules, human_reason, gpt_reason, target_is_flipped)
                     original = cu(phase2_payoffs.get(r, 0))
-                    final = cu(C.Pass_Reward_p2) if winner in ["Human", "Tie"] else cu(0)
+                    payoff_by_reasoning = payoff_by_reasoning_by_round[r]
+                    if payoff_by_reasoning:
+                        final = cu(C.Pass_Reward_p2) if winner in ["Human", "Tie"] else cu(0)
+                        payoff_basis = "理由判斷結果"
+                    else:
+                        final = original
+                        payoff_basis = "數字選擇"
                     final_phase2[r] = final
                     current.update({
                         "human_reason": human_reason, "gpt_reason": gpt_reason,
                         "winner_type": winner,
                         "result_text": "您的理由較具體" if winner in ["Human", "Tie"] else "AI生成的理由較具體",
+                        "payoff_basis": payoff_basis,
                         "final_payoff": final,
                     })
                     p2_db_data[r] = {
                         "is_flipped": target_is_flipped, "gpt_reason": gpt_reason,
                         "gpt_analysis": analysis, "winner_type": winner,
+                        "payoff_by_reasoning": payoff_by_reasoning,
                         "payoff_adj": final - original,
                     }
 
@@ -251,17 +270,25 @@ class Player(BasePlayer):
                     gpt_reason = current.get("gpt_reason_2") or gpt_generate(C.experimental_rules_2, r, human_num)
                     winner, analysis = gpt_judge(C.experimental_rules_2, human_reason, gpt_reason, target_is_flipped)
                     original = cu(phase3_payoffs.get(r, 0))
-                    final = cu(C.Pass_Reward_p3) if winner in ["Human", "Tie"] else cu(0)
+                    payoff_by_reasoning_2 = payoff_by_reasoning_2_by_round[r]
+                    if payoff_by_reasoning_2:
+                        final = cu(C.Pass_Reward_p3) if winner in ["Human", "Tie"] else cu(0)
+                        payoff_basis_2 = "理由判斷結果"
+                    else:
+                        final = original
+                        payoff_basis_2 = "數字選擇"
                     final_phase3[r] = final
                     current.update({
                         "human_reason_2": human_reason, "gpt_reason_2": gpt_reason,
                         "winner_type_2": winner,
                         "result_text_2": "您的理由較具體" if winner in ["Human", "Tie"] else "AI生成的理由較具體",
+                        "payoff_basis_2": payoff_basis_2,
                         "final_payoff_2": final,
                     })
                     p3_db_data[r] = {
                         "is_flipped_2": target_is_flipped, "gpt_reason_2": gpt_reason,
                         "gpt_analysis_2": analysis, "winner_type_2": winner,
+                        "payoff_by_reasoning_2": payoff_by_reasoning_2,
                         "payoff_adj_2": final - original,
                     }
 
@@ -332,12 +359,14 @@ class ProcessingPage(Page):
                     target.gpt_reason = values["gpt_reason"]
                     target.gpt_analysis = values["gpt_analysis"]
                     target.winner_type = values["winner_type"]
+                    target.payoff_by_reasoning = values["payoff_by_reasoning"]
 
                 for r, values in output["p3_db_data"].items():
                     target = player.in_round(int(r))
                     target.gpt_reason_2 = values["gpt_reason_2"]
                     target.gpt_analysis_2 = values["gpt_analysis_2"]
                     target.winner_type_2 = values["winner_type_2"]
+                    target.payoff_by_reasoning_2 = values["payoff_by_reasoning_2"]
 
                 player.is_gpt_finished = True
                 del _thread_storage[p_id]
@@ -350,7 +379,7 @@ class ProcessingPage(Page):
 
 
 class PrepareWaitPage(WaitPage):
-    title_text = "請等待AI處理所有受試者理由"
+    title_text = "請等待AI處理其他受試者理由"
     wait_for_all_groups = True
 
 

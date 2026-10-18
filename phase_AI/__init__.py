@@ -36,10 +36,11 @@ class C(BaseConstants):
         """
     experimental_rules_2 = """
         * Part III consists of 10 rounds. At the beginning, the computer randomly divides all participants into groups, and the number of participants in each group will be displayed on the screen.
-        * In each round, all participants in your group must choose an integer between 0 and 100.
-        * The average of all numbers chosen by participants in your group is called the "Average Number."
-        * The person whose choice is closest to **0.7 times the Average Number** (called the "Target Number") is the "winner" of the round and will receive a 100 units of experimental currency. In the event of a tie, the computer will randomly select one winner.
-        * After each round ends, the computer will display the past "Average Number" and "Target Number" for your group, whether you are the winner, and your payoff for each round.
+        * In each round, all participants in your group first choose an integer between 0 and 100. In reasoning rounds, you may optionally choose a different number on the following page and then explain the reason for your final choice.
+        * Each participant's Target Number is 0.7 times the average of that participant's final number and their opponent's original number.
+        * Each participant compares their final number with their opponent's original number against their own Target Number. Anyone whose number is at least as close as their opponent's original number receives 100 units of experimental currency; both may receive the reward if equally close.
+        * In reasoning rounds, the payoff is determined with equal probability by the AI's comparison of your reason with an AI-generated reason, or by the number-based payoff above. Other rounds use the number-based payoff.
+        * The computer displays the group Average Number, your individual Target Number, whether you are a number-based winner, and the payoff for each round.
         """
     
 class Subsession(BaseSubsession):

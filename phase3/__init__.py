@@ -4,7 +4,6 @@ from otree.api import *
 from settings import DEBUG
 from reasoning_rounds import draw_reasoning_rounds
 # from settings import num_participant
-import random
 
 class C(BaseConstants):
     NAME_IN_URL = 'phase3'
@@ -20,56 +19,84 @@ def creating_session(subsession):
         subsession.session.vars['phase3_reasoning_rounds'] = draw_reasoning_rounds(
             C.NUM_ROUNDS
         )
+    is_reasoning_round = subsession.round_number in subsession.session.vars[
+        'phase3_reasoning_rounds'
+    ]
+    for player in subsession.get_players():
+        player.is_reasoning_round = is_reasoning_round
 
 def reasoning_rounds_for(player):
     return player.session.vars['phase3_reasoning_rounds']
 
 class Group(BaseGroup):
     mean_number = models.FloatField()
-    target_number = models.FloatField()
 
 def set_payoffs(subsession: Subsession): # because we use wait_for_all_groups
     for group in subsession.get_groups():
-        all_num = [p.num for p in group.get_players()]
+        final_numbers = {
+            p.id_in_group: (
+                p.revised_num
+                if p.field_maybe_none("revised_num") is not None
+                else p.num
+            )
+            for p in group.get_players()
+        }
+        all_num = [final_numbers[p.id_in_group] for p in group.get_players()]
         
         group.mean_number = sum(all_num) / C.PLAYERS_PER_GROUP
-        group.target_number = 0.7 * group.mean_number
 
         for p in group.get_players():
-            p.distance = abs(p.num - group.target_number)
-            p.payoff = cu(0)
+            final_num = final_numbers[p.id_in_group]
+            other = p.get_others_in_group()[0]
+            other_initial_num = other.num
+            other_revised_num = other.field_maybe_none("revised_num")
+            p.other_num = other_initial_num
+            p.other_revised_num = other_revised_num
+            p.target_number = round(0.7 * ((final_num + other_initial_num) / 2), 2)
+            p.distance = round(abs(final_num - p.target_number), 2)
+            opponent_distance = round(abs(other_initial_num - p.target_number), 2)
+            p.bonus_2 = p.distance <= opponent_distance
+            p.payoff = cu(C.Winner_Reward if p.bonus_2 else 0)
 
-        all_distances = [p.distance for p in group.get_players()]
-        min_dist = min(all_distances)
-        winners = [p for p in group.get_players() if p.distance == min_dist]
-        lucky_winner = random.choice(winners)
-
-        for p in group.get_players():
-            if p == lucky_winner:
-                p.bonus_2 = True   
-                p.payoff = cu(C.Winner_Reward)
-            else:
-                p.bonus_2 = False 
-                p.payoff = cu(0)
-
-            p.participant.vars[f'num_2_{p.round_number}'] = p.num
+            p.participant.vars[f'initial_num_2_{p.round_number}'] = p.num
+            p.participant.vars[f'revised_num_2_{p.round_number}'] = p.field_maybe_none("revised_num")
+            p.participant.vars[f'num_2_{p.round_number}'] = final_num
+            p.participant.vars[f'other_num_2_{p.round_number}'] = p.other_num
+            p.participant.vars[f'other_revised_num_2_{p.round_number}'] = other_revised_num
             p.participant.vars[f'reason_2_{p.round_number}'] = p.reason if p.round_number in reasoning_rounds_for(p) else None
             p.participant.vars[f'payoff_2_{p.round_number}'] = p.payoff
             p.participant.vars[f'bonus_2_{p.round_number}'] = p.bonus_2
             p.participant.vars['phase3_reasoning_rounds'] = reasoning_rounds_for(p)
 
 class Player(BasePlayer):
-    distance = models.FloatField()
+    target_number = models.FloatField()
     num = models.IntegerField(
         min = 0,
         max = 100,
         label = "請選擇您的數字：",
     )
+    revised_num = models.IntegerField(
+        min = 0,
+        max = 100,
+        blank=True,
+        label = "請重新選擇數字：",
+    )
+    other_num = models.IntegerField(
+        min=0, 
+        max=100
+    )
+    other_revised_num = models.IntegerField(
+        min=0, 
+        max=100, 
+        blank=True
+    )
+    distance = models.FloatField()
     reason = models.LongStringField(
         label = "請說明您選擇該數字的理由：",
         initial = "",
         rows = 5
     )
+    is_reasoning_round = models.BooleanField(initial=False)
     bonus_2 = models.BooleanField(
         initial = False
     )
@@ -106,19 +133,38 @@ class p_beauty(Page):
 
     @staticmethod
     def is_displayed(player):
-        return player.round_number not in reasoning_rounds_for(player)
+        return True
 
-class p_beauty_reasoning(Page):
-    form_model = 'player'
-    form_fields = ['num', 'reason']
+
+class reasoningWaitPage(WaitPage):
+    title_text = "請等待其他受試者完成決策"
+
+    wait_for_all_groups = True
 
     @staticmethod
     def is_displayed(player):
         return player.round_number in reasoning_rounds_for(player)
+
+
+class p_beauty_reasoning(Page):
+    form_model = 'player'
+    form_fields = ['revised_num', 'reason']
+
+    @staticmethod
+    def is_displayed(player):
+        return player.round_number in reasoning_rounds_for(player)
+
+    @staticmethod
+    def vars_for_template(player):
+        return {"number_choices": range(0, 101)}
     
     # block forbidden inputs
     @staticmethod
     def error_message(player, values):
+        revised_num = values.get('revised_num')
+        if revised_num is not None and revised_num == player.num:
+            return "重新選擇的數字不可與原先選擇相同。"
+
         content = values['reason'].strip() # .strip removes leading/trailing blankspace
 
         if len(content) == 0: 
@@ -129,10 +175,11 @@ class p_beauty_reasoning(Page):
         
 
 class DecisionWaitPage(WaitPage):
-    title_text = "請等待所有受試者完成決策"
+    title_text = "請等待其他受試者完成決策"
 
     wait_for_all_groups = True
     after_all_players_arrive = 'set_payoffs'
+
 
 class Results(Page):
     @staticmethod
@@ -145,9 +192,14 @@ class Results(Page):
             g = p.group
             history.append({
                 'round': p.round_number,
-                'num': f"{player.in_round(p.round_number).num}",
+                'initial_num': f"{p.num}",
+                'revised_num': p.field_maybe_none("revised_num"),
+                'num': f"{p.revised_num if p.field_maybe_none('revised_num') is not None else p.num}",
+                'other_num': p.other_num,
+                'other_changed': p.field_maybe_none("other_revised_num") is not None,
+                'other_revised_num': p.field_maybe_none("other_revised_num"),
                 'mean': f"{g.mean_number:.2f}",
-                "target": f"{g.target_number:.2f}",
+                "target": f"{p.target_number:.2f}",
                 "reason": player.in_round(p.round_number).reason if g.round_number in reasoning_rounds else None,
                 'is_current': p.round_number == player.round_number,
                 'is_reasoning_round': p.round_number in reasoning_rounds,
@@ -169,7 +221,7 @@ class Results(Page):
     
 
 class ResultsWaitPage(WaitPage):
-    title_text = "請等待所有受試者確認結果"
+    title_text = "請等待其他受試者確認結果"
 
     wait_for_all_groups = True
 
@@ -177,6 +229,7 @@ page_sequence = [
     InstructionPage, 
     Phase3StartWaitPage,
     p_beauty, 
+    reasoningWaitPage,
     p_beauty_reasoning,
     DecisionWaitPage,
     Results,

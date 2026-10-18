@@ -3,77 +3,101 @@
 
 {% block styles %}
 <style>
-    .otree-form-errors {
-        display: none !important;
+    .otree-form-errors { display: none !important; }
+    textarea {
+        min-height: 200px !important;
+        width: 100% !important;
+        padding: 15px !important;
+        font-size: 16px !important;
+        border: 2px solid #ced4da !important;
+        border-radius: 8px !important;
+        line-height: 1.6 !important;
     }
-
-    #id_reason {
-        min-height: 200px;
-        width: 100%;
-        padding: 15px;
-        font-size: 16px;
-        border: 2px solid #ced4da;
-        border-radius: 8px;
-        line-height: 1.6;
-    }
-
     .number-grid {
         display: grid;
         grid-template-columns: repeat(10, 1fr);
-        gap: 30px; 
-        max-width: 100%;
-        margin: 25px 0;
+        gap: 15px;
+        margin: 20px 0;
     }
-
     .number-box {
-        border: 2px solid #0d6efd; 
-        border-radius: 12px;       
-        padding: 15px 0;
+        border: 2px solid #0d6efd;
+        border-radius: 10px;
+        padding: 12px 0;
         text-align: center;
-        font-size: 22px;
+        font-size: 20px;
         font-weight: bold;
-        color: #0d6efd;            
-        cursor: pointer;
-        background-color: #ffffff;
-        transition: all 0.2s ease-in-out;
-        user-select: none;
+        color: #0d6efd;
+        background: #fff;
     }
-
-    .number-box:hover:not(.selected) {
-        background-color: #f0f5ff; 
-        border-color: #0b5ed7;
-        transform: scale(1.05);
+    .number-box.selected-initial {
+        background: #dee2e6;
+        border-color: #6c757d;
+        color: #212529;
     }
-
-    .number-box.selected {
-        background-color: #0d6efd !important; 
-        color: white !important;               
-        border-color: #0a58ca !important;
-        box-shadow: 0 5px 15px rgba(13, 110, 253, 0.45) !important; 
-        transform: scale(1.03);
+    .number-box.revision-choice { cursor: pointer; }
+    .number-box.revision-choice:hover { background: #f0f5ff; }
+    .number-box.revision-choice.selected {
+        background: #0d6efd;
+        color: #fff;
+    }
+    #revision-panel { display: none; }
+    .field-error, #time-warning {
+        margin: 15px 0;
+        border: 2px solid #dc3545;
+        padding: 12px;
+        border-radius: 8px;
+        background: #fff5f5;
     }
 </style>
 {% endblock %}
 
 {% block content %}
 <h3 class="mb-4"><b>第{{ player.round_number }}回合</b></h3>
-<p class="mb-4">此回合為<b>額外說明回合</b>。</p>
+<h5 class="mb-4">此回合為<b>額外說明回合</b>。</h5>
+<p>額外說明回合的報酬有 50% 機率由<b>您最終選擇的數字</b>與<b>對手未更改的數字</b>決定，另外 50% 機率由<b>獨立 ChatGPT 的判斷結果</b>決定。</p>
 
-<div id="error-warning" class="alert alert-danger" style="display:none;"></div>
-<div id="time-warning" class="alert alert-danger" style="display:none;">
-    請盡快完成決策與理由填寫！
-</div>
+<br>
 
-<p>請選擇您的數字：</p>
-<div style="display:none;">{{ form.num }}</div>
-<div class="number-grid">
+<p>您原先選擇的數字：<b>[{{ player.num }}]</b></p>
+<div class="number-grid" aria-label="原先選擇的數字">
     {% for number in number_choices %}
-        <button type="button" class="number-box" data-value="{{ number }}">{{ number }}</button>
+        <div class="number-box {% if number == player.num %}selected-initial{% endif %}">{{ number }}</div>
     {% endfor %}
 </div>
 
-<label for="id_reason" class="form-label">請說明您選擇該數字的理由：</label>
-{{ form.reason }}
+<br>
+
+<fieldset class="mb-4">
+    <div id="change-error" class="alert alert-danger field-error" style="display:none;" role="alert"></div>
+    <legend class="fs-6">您是否要更改數字？</legend>
+    <div class="form-check form-check-inline">
+        <input class="form-check-input" type="radio" name="change-number" id="change-number-yes" value="yes">
+        <label class="form-check-label" for="change-number-yes">是</label>
+    </div>
+    <div class="form-check form-check-inline">
+        <input class="form-check-input" type="radio" name="change-number" id="change-number-no" value="no">
+        <label class="form-check-label" for="change-number-no">否</label>
+    </div>
+</fieldset>
+
+<div id="revision-panel">
+    <p>請重新選擇您的數字：</p>
+    <div id="revision-error" class="alert alert-danger field-error" style="display:none;" role="alert"></div>
+    <div class="number-grid">
+        {% for number in number_choices %}
+            <button type="button" class="number-box revision-choice" data-value="{{ number }}">{{ number }}</button>
+        {% endfor %}
+    </div>
+</div>
+<div style="display:none;">{{ form.revised_num }}</div>
+
+<br>
+
+<p id="reason-prompt">請說明您選擇數字 <b>[<span id="reason-final-number">{{ player.num }}</span>]</b> 的理由：</p>
+<div id="reason-error" class="alert alert-danger field-error" style="display:none;" role="alert"></div>
+<div id="time-warning" class="alert alert-danger" style="display:none;">請盡快提交您的決策理由！</div>
+
+<div class="mb-4">{{ form.reason }}</div>
 
 <div class="d-flex justify-content-center mt-4">
     <button type="button" class="btn btn-primary otree-next-button" id="custom-next-btn">Next</button>
@@ -83,61 +107,106 @@
 {% block scripts %}
 <script>
     document.addEventListener("DOMContentLoaded", function() {
-        const numberInput = document.getElementById("id_num");
+        const initialNumber = "{{ player.num }}";
+        const revisionInput = document.getElementById("id_revised_num");
         const reasonInput = document.getElementById("id_reason");
-        const errorWarning = document.getElementById("error-warning");
+        const changeNumberOptions = document.querySelectorAll('input[name="change-number"]');
+        const panel = document.getElementById("revision-panel");
+        const reasonFinalNumber = document.getElementById("reason-final-number");
+        const changeError = document.getElementById("change-error");
+        const revisionError = document.getElementById("revision-error");
+        const reasonError = document.getElementById("reason-error");
         const timeWarning = document.getElementById("time-warning");
         const form = document.querySelector("form");
-        const nextButton = document.getElementById("custom-next-btn");
-        const boxes = document.querySelectorAll(".number-box");
+        const boxes = document.querySelectorAll(".revision-choice");
 
-        numberInput.type = "hidden";
-
-        function clearWarnings() {
-            errorWarning.style.display = "none";
-            timeWarning.style.display = "none";
+        function clearErrors() {
+            [changeError, revisionError, reasonError].forEach(function(error) {
+                error.textContent = "";
+                error.style.display = "none";
+            });
         }
 
-        const initiallySelected = document.querySelector(
-            '.number-box[data-value="' + numberInput.value + '"]'
-        );
-        if (initiallySelected) {
-            initiallySelected.classList.add("selected");
+        function clearChangeErrors() {
+            [changeError, revisionError].forEach(function(error) {
+                error.textContent = "";
+                error.style.display = "none";
+            });
         }
 
-        boxes.forEach(function(box) {
-            box.addEventListener("click", function() {
-                boxes.forEach(function(item) {
-                    item.classList.remove("selected");
-                });
-                box.classList.add("selected");
-                numberInput.value = box.dataset.value;
-                clearWarnings();
+        revisionInput.type = "hidden";
+        changeNumberOptions.forEach(function(option) {
+            option.addEventListener("change", function() {
+                clearChangeErrors();
+                const wantsToChange = document.getElementById("change-number-yes").checked;
+                panel.style.display = wantsToChange ? "block" : "none";
+                if (wantsToChange) {
+                    revisionInput.value = "";
+                    boxes.forEach(function(box) { box.classList.remove("selected"); });
+                    reasonFinalNumber.textContent = "";
+                } else {
+                    revisionInput.value = "";
+                    boxes.forEach(function(box) { box.classList.remove("selected"); });
+                    reasonFinalNumber.textContent = initialNumber;
+                }
             });
         });
 
-        reasonInput.addEventListener("input", clearWarnings);
+        boxes.forEach(function(box) {
+            box.addEventListener("click", function() {
+                const value = box.dataset.value;
+                if (value === initialNumber) {
+                    revisionInput.value = "";
+                    boxes.forEach(function(item) { item.classList.remove("selected"); });
+                    reasonFinalNumber.textContent = "";
+                    revisionError.textContent = "重新選擇的數字不可與原先選擇相同。";
+                    revisionError.style.display = "block";
+                    return;
+                }
+                boxes.forEach(function(item) { item.classList.remove("selected"); });
+                box.classList.add("selected");
+                revisionInput.value = value;
+                reasonFinalNumber.textContent = value;
+                revisionError.textContent = "";
+                revisionError.style.display = "none";
+                timeWarning.style.display = "none";
+            });
+        });
 
-        nextButton.addEventListener("click", function() {
+        document.getElementById("custom-next-btn").addEventListener("click", function() {
             const reason = reasonInput.value.trim();
-            if (!numberInput.value) {
-                errorWarning.textContent = "請先選擇數字！";
+            const changeNumberSelected = document.querySelector('input[name="change-number"]:checked');
+            const wantsToChange = changeNumberSelected && changeNumberSelected.value === "yes";
+
+            clearErrors();
+            if (!changeNumberSelected) {
+                changeError.textContent = "請選擇是否更改數字。";
+                changeError.style.display = "block";
+            } else if (wantsToChange && !revisionInput.value) {
+                revisionError.textContent = "請選擇一個與原先選擇不同的數字。";
+                revisionError.style.display = "block";
             } else if (!reason) {
-                errorWarning.textContent = "請填寫您的決策理由！";
+                reasonError.textContent = "請填寫您的決策理由！";
+                reasonError.style.display = "block";
             } else if (new Set(reason).size < 3) {
-                errorWarning.textContent = "請勿輸入過短、單一，或重複的文字內容。";
+                reasonError.textContent = "請勿輸入過短、單一，或重複的文字內容。";
+                reasonError.style.display = "block";
             } else {
                 form.submit();
                 return;
             }
-
             timeWarning.style.display = "none";
-            errorWarning.style.display = "block";
             window.scrollTo(0, 0);
         });
 
+        reasonInput.addEventListener("input", function() {
+            reasonError.textContent = "";
+            reasonError.style.display = "none";
+            timeWarning.style.display = "none";
+        });
+
         setTimeout(function() {
-            errorWarning.style.display = "none";
+            clearErrors();
             timeWarning.style.display = "block";
             window.scrollTo(0, 0);
         }, 180000);

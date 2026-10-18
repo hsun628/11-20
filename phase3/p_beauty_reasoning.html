@@ -3,72 +3,181 @@
 
 {% block styles %}
 <style>
-    .otree-form-errors {
-        display: none !important;
+    .otree-form-errors { display: none !important; }
+    textarea {
+        min-height: 200px !important;
+        width: 100% !important;
+        padding: 15px !important;
+        font-size: 16px !important;
+        border: 2px solid #ced4da !important;
+        border-radius: 8px !important;
+        line-height: 1.6 !important;
     }
-    
-    #id_num {
-        width: 100px !important;     
+    #id_revised_num {
+        width: 100px !important;
         max-width: 100%;
-        font-size: 1rem;          
+        font-size: 1rem;
         padding: 8px;
         border: 2px solid #ced4da;
         border-radius: 8px;
-        transition: border-color 0.15s ease-in-out; /* 讓邊框顏色變化稍微平滑一點 */
-    }
-    
-    /* 當輸入框被點擊聚焦時，徹底移除淺藍色陰影與外框線 */
-    #id_num:focus {
-        border-color: #0d6efd !important; /* 保持外框變為藍色 */
-        box-shadow: none !important;      /* 移除 Bootstrap 的淺藍陰影 */
-        outline: none !important;         /* 移除瀏覽器預設外框線 */
-    }
-
-    /* 統一調整提示框樣式（採用粉紅底紅邊） */
-    #time-warning, #error-warning {
-        margin: 15px 0; 
-        border: 2px solid #dc3545; 
-        padding: 12px; 
-        border-radius: 8px; 
-        background-color: #fff5f5;
-    }
-
-    textarea {
-        display: block;
-        width: 100%;
-        min-height: 1000px;
-        max-width: 100%;
-        padding: 15px;
-        font-size: 16px;
-        font-family: inherit;
-        line-height: 1.8;
-        color: #212529;
-        background-color: #fff;
-        border: 2px solid #ced4da;
-        border-radius: 8px;
-        box-sizing: border-box;
-        resize: vertical;
-        overflow-y: auto;
         transition: border-color 0.15s ease-in-out;
+    }
+    #id_revised_num:focus {
+        border-color: #0d6efd !important;
+        box-shadow: none !important;
+        outline: none !important;
+    }
+    #revision-panel { display: none; }
+    .field-error, #time-warning {
+        margin: 15px 0;
+        border: 2px solid #dc3545;
+        padding: 12px;
+        border-radius: 8px;
+        background: #fff5f5;
     }
 </style>
 {% endblock %}
 
 {% block content %}
 <h3 class="mb-4"><b>第{{ player.round_number }}回合</b></h3>
-<p class="mb-4">此回合為<b>額外說明回合</b>。</p>
+<h5 class="mb-4">此回合為<b>額外說明回合</b>。</h5>
+<p>額外說明回合的報酬有 50% 機率由<b>您最終選擇的數字</b>與<b>對手未更改的數字</b>決定，另外 50% 機率由<b>獨立 ChatGPT 的判斷結果</b>決定。</p>
 
-<div class="mb-4">
-    <label for="id_num">請選擇您的數字：</label>
-    {{ form.num }}
+<br>
+
+<p>您原先選擇的數字：<b>[{{ player.num }}]</b></p>
+
+<br>
+
+<fieldset class="mb-4">
+    <div id="change-error" class="alert alert-danger field-error" style="display:none;" role="alert"></div>
+    <legend class="fs-6">您是否要更改數字？</legend>
+    <div class="form-check form-check-inline">
+        <input class="form-check-input" type="radio" name="change-number" id="change-number-yes" value="yes">
+        <label class="form-check-label" for="change-number-yes">是</label>
+    </div>
+    <div class="form-check form-check-inline">
+        <input class="form-check-input" type="radio" name="change-number" id="change-number-no" value="no">
+        <label class="form-check-label" for="change-number-no">否</label>
+    </div>
+</fieldset>
+
+<div id="revision-panel" class="mb-4">
+    <label for="id_revised_num" class="form-label">請重新選擇您的數字：</label>
+    <div id="revision-error" class="alert alert-danger field-error" style="display:none;" role="alert"></div>
+    {{ form.revised_num }}
 </div>
 
-<div class="mb-4">
-    <label for="id_reason">請說明您選擇該數字的理由：</label>
-    {{ form.reason }}
-</div>
+<br>
+
+<p id="reason-prompt">請說明您選擇數字 <b>[<span id="reason-final-number">{{ player.num }}</span>]</b> 的理由：</p>
+<div id="reason-error" class="alert alert-danger field-error" style="display:none;" role="alert"></div>
+<div id="time-warning" class="alert alert-danger" style="display:none;">請盡快提交您的決策理由！</div>
+
+<div class="mb-4">{{ form.reason }}</div>
 
 <div class="d-flex justify-content-center mt-4">
-    {% next_button %}
+    <button type="button" class="btn btn-primary otree-next-button" id="custom-next-btn">Next</button>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        const initialNumber = "{{ player.num }}";
+        const revisionInput = document.getElementById("id_revised_num");
+        const reasonInput = document.getElementById("id_reason");
+        const changeNumberOptions = document.querySelectorAll('input[name="change-number"]');
+        const panel = document.getElementById("revision-panel");
+        const reasonFinalNumber = document.getElementById("reason-final-number");
+        const changeError = document.getElementById("change-error");
+        const revisionError = document.getElementById("revision-error");
+        const reasonError = document.getElementById("reason-error");
+        const timeWarning = document.getElementById("time-warning");
+        const form = document.querySelector("form");
+
+        function clearErrors() {
+            [changeError, revisionError, reasonError].forEach(function(error) {
+                error.textContent = "";
+                error.style.display = "none";
+            });
+        }
+
+        function clearChangeErrors() {
+            [changeError, revisionError].forEach(function(error) {
+                error.textContent = "";
+                error.style.display = "none";
+            });
+        }
+
+        changeNumberOptions.forEach(function(option) {
+            option.addEventListener("change", function() {
+                clearChangeErrors();
+                const wantsToChange = document.getElementById("change-number-yes").checked;
+                panel.style.display = wantsToChange ? "block" : "none";
+                revisionInput.value = "";
+                reasonFinalNumber.textContent = wantsToChange ? "" : initialNumber;
+            });
+        });
+
+        revisionInput.addEventListener("input", function() {
+            const value = revisionInput.value.trim();
+            if (!value) {
+                reasonFinalNumber.textContent = "";
+                revisionError.textContent = "";
+                revisionError.style.display = "none";
+            } else if (Number(value) === Number(initialNumber)) {
+                reasonFinalNumber.textContent = "";
+                revisionError.textContent = "重新選擇的數字不可與原先選擇相同。";
+                revisionError.style.display = "block";
+            } else {
+                reasonFinalNumber.textContent = value;
+                revisionError.textContent = "";
+                revisionError.style.display = "none";
+            }
+            timeWarning.style.display = "none";
+        });
+
+        document.getElementById("custom-next-btn").addEventListener("click", function() {
+            const reason = reasonInput.value.trim();
+            const changeNumberSelected = document.querySelector('input[name="change-number"]:checked');
+            const wantsToChange = changeNumberSelected && changeNumberSelected.value === "yes";
+
+            clearErrors();
+            if (!changeNumberSelected) {
+                changeError.textContent = "請選擇是否更改數字。";
+                changeError.style.display = "block";
+            } else if (wantsToChange && !revisionInput.value.trim()) {
+                revisionError.textContent = "請輸入重新選擇的數字。";
+                revisionError.style.display = "block";
+            } else if (wantsToChange && Number(revisionInput.value) === Number(initialNumber)) {
+                revisionError.textContent = "重新選擇的數字不可與原先選擇相同。";
+                revisionError.style.display = "block";
+            } else if (!reason) {
+                reasonError.textContent = "請填寫您的決策理由！";
+                reasonError.style.display = "block";
+            } else if (new Set(reason).size < 3) {
+                reasonError.textContent = "請勿輸入過短、單一，或重複的文字內容。";
+                reasonError.style.display = "block";
+            } else {
+                form.submit();
+                return;
+            }
+            timeWarning.style.display = "none";
+            window.scrollTo(0, 0);
+        });
+
+        reasonInput.addEventListener("input", function() {
+            reasonError.textContent = "";
+            reasonError.style.display = "none";
+            timeWarning.style.display = "none";
+        });
+
+        setTimeout(function() {
+            clearErrors();
+            timeWarning.style.display = "block";
+            window.scrollTo(0, 0);
+        }, 180000);
+    });
+</script>
 {% endblock %}

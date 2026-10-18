@@ -213,6 +213,7 @@ class AIResults(Page):
             entry["is_reasoning_round"] = entry.get("round") in reasoning_rounds_p3
             entry["result_text_2"] = entry.get("result_text_2", "-")
             entry["bonus"] = entry.get("bonus", entry.get("bonus_2", False))
+            entry["payoff_basis_2"] = entry.get("payoff_basis_2", "-")
             if entry.get("final_payoff_2") is None:
                 entry["final_payoff_2"] = cu(
                     phase3_round_payoffs.get(entry.get("round"), 0)

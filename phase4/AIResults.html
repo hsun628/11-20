@@ -2,6 +2,22 @@
 {% load otree %}
 
 {% block content %}
+<style>
+    .results-table-wrapper {
+        overflow-x: auto;
+    }
+
+    .results-table-wrapper table {
+        width: max-content;
+        min-width: 100%;
+    }
+
+    .results-table-wrapper th,
+    .results-table-wrapper td {
+        white-space: nowrap;
+    }
+</style>
+
 <div class="container mt-4">
     <h3 class="mb-4 text-center"><b>實驗第二、三部分報酬</b></h3>
     <p class="text-center fw-bold mb-4">請點擊下方按鈕查看對應部分的回合報酬。</p>
@@ -12,6 +28,7 @@
     </div>
 
     <div id="phase2-content">
+        <div class="results-table-wrapper">
         <table class="table text-center align-middle">
             <thead>
                 <tr>
@@ -21,6 +38,7 @@
                     <th>對手的數字</th>
                     <th>是否為數字贏家</th>
                     <th>理由判斷結果</th>
+                    <th>報酬依據</th>
                     <th>回合報酬</th>
                 </tr>
             </thead>
@@ -33,15 +51,18 @@
                     <td>{{ entry.other_num }}</td>
                     <td>{% if entry.bonus %}是{% else %}否{% endif %}</td>
                     <td>{{ entry.result_text }}</td>
+                    <td>{% if entry.is_reasoning_round %}{% if entry.payoff_basis %}{{ entry.payoff_basis }}{% else %}-{% endif %}{% else %}-{% endif %}</td>
                     <td class="fw-bold">{{ entry.final_payoff }}</td>
                 </tr>
             {% endfor %}
             </tbody>
         </table>
+        </div>
         <p class="text-end">第二部分總報酬：<b>{{ total_phase2_payoff }}</b>法幣</p>
     </div>
 
     <div id="phase3-content" class="d-none">
+        <div class="results-table-wrapper">
         <table class="table text-center align-middle">
             <thead>
                 <tr>
@@ -49,9 +70,9 @@
                     <th>回合類型</th>
                     <th>您的數字</th>
                     <th>平均數字</th>
-                    <th>目標數字</th>
+                    <th>您的目標數字</th>
                     <th>是否為數字贏家</th>
-                    <th>理由判斷結果</th>
+                    <th>報酬依據</th>
                     <th>回合報酬</th>
                 </tr>
             </thead>
@@ -64,12 +85,13 @@
                     <td>{{ entry.mean }}</td>
                     <td>{{ entry.target }}</td>
                     <td>{% if entry.bonus %}是{% else %}否{% endif %}</td>
-                    <td>{{ entry.result_text_2 }}</td>
+                    <td>{% if entry.is_reasoning_round %}{{ entry.payoff_basis_2 }}{% else %}-{% endif %}</td>
                     <td class="fw-bold">{{ entry.final_payoff_2 }}</td>
                 </tr>
             {% endfor %}
             </tbody>
         </table>
+        </div>
         <p class="text-end">第三部分總報酬：<b>{{ total_phase3_payoff }}</b>法幣</p>
     </div>
 
