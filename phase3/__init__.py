@@ -190,21 +190,45 @@ class Results(Page):
 
         for p in player_history:
             g = p.group
+            final_num = (
+                p.revised_num
+                if p.field_maybe_none("revised_num") is not None
+                else p.num
+            )
+            other_revised_num = p.field_maybe_none("other_revised_num")
+            other_final_num = (
+                other_revised_num
+                if other_revised_num is not None
+                else p.other_num
+            )
+            comparison_target = round(
+                0.7 * ((final_num + other_final_num) / 2), 2
+            )
+            comparison_winner = (
+                abs(final_num - comparison_target)
+                <= abs(other_final_num - comparison_target)
+            )
             history.append({
                 'round': p.round_number,
                 'initial_num': f"{p.num}",
                 'revised_num': p.field_maybe_none("revised_num"),
                 'num': f"{p.revised_num if p.field_maybe_none('revised_num') is not None else p.num}",
                 'other_num': p.other_num,
-                'other_changed': p.field_maybe_none("other_revised_num") is not None,
-                'other_revised_num': p.field_maybe_none("other_revised_num"),
+                'other_changed': other_revised_num is not None,
+                'other_revised_num': other_revised_num,
+                'other_final_num': other_final_num,
                 'mean': f"{g.mean_number:.2f}",
                 "target": f"{p.target_number:.2f}",
                 "reason": player.in_round(p.round_number).reason if g.round_number in reasoning_rounds else None,
                 'is_current': p.round_number == player.round_number,
                 'is_reasoning_round': p.round_number in reasoning_rounds,
                 'bonus': player.in_round(p.round_number).bonus_2,
-                'round_payoff': player.in_round(p.round_number).payoff
+                'round_payoff': player.in_round(p.round_number).payoff,
+                'comparison_target': f"{comparison_target:.2f}",
+                'comparison_winner': comparison_winner,
+                'comparison_payoff': cu(
+                    C.Winner_Reward if comparison_winner else 0
+                )
             })
 
         if player.round_number == C.NUM_ROUNDS:
