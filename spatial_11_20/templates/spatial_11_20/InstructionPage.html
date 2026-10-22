@@ -1,0 +1,25 @@
+{% extends "global/Page.html" %}
+{% load otree %}
+
+{% block content %}
+<div class="text-center mb-4">
+    <h3><b>Spatial 11–20 數字選擇遊戲</b></h3>
+</div>
+
+<div class="card mb-4">
+    <div class="card-body">
+        <p>本遊戲共 10 回合，每回合會重新隨機配對兩位參與者，並在每組內隨機分配目標。</p>
+        <p>每回合請從 1 至 100 的棋盤中選擇一個數字。兩位玩家的目標各不相同：</p>
+        <ul>
+            <li>一位玩家的目標是選擇「對手數字 − 1」。</li>
+            <li>另一位玩家的目標是選擇「對手數字 − 10」。</li>
+        </ul>
+        <p>送出選擇後，您會立即取得與所選數字相同數目的法幣。配對雙方都完成選擇後，若您選中的數字符合自己的目標，另可獲得 <b>{{ bonus_amount }} 法幣</b>獎勵（暫定）。</p>
+        <p class="mb-0">每回合結束後會公布雙方選擇、目標是否達成及本回合報酬。</p>
+    </div>
+</div>
+
+<div class="d-flex justify-content-center mt-4">
+    {% next_button %}
+</div>
+{% endblock %}

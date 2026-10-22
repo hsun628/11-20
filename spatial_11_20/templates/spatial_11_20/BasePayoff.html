@@ -1,0 +1,15 @@
+{% extends "global/Page.html" %}
+{% load otree %}
+
+{% block content %}
+<div class="text-center">
+    <h3 class="mb-4"><b>您的選擇已送出</b></h3>
+    <p>您選擇了 <b>{{ player.num }}</b>。</p>
+    <p class="mb-4">已立即取得 <b>{{ player.payoff }}</b> 法幣。</p>
+    <p>配對對手完成選擇後，系統會確認您的目標獎勵。</p>
+</div>
+
+<div class="d-flex justify-content-center mt-4">
+    {% next_button %}
+</div>
+{% endblock %}

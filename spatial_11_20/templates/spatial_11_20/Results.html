@@ -1,0 +1,39 @@
+{% extends "global/Page.html" %}
+{% load otree %}
+
+{% block content %}
+<h3 class="mb-4"><b>第 {{ player.round_number }} 回合結果</b></h3>
+
+<table class="table table-bordered text-center">
+    <tbody>
+        <tr>
+            <th>您的數字</th>
+            <td>{{ player.num }}</td>
+        </tr>
+        <tr>
+            <th>對手的數字</th>
+            <td>{{ player.other_num }}</td>
+        </tr>
+        <tr>
+            <th>您的目標</th>
+            <td>{{ player.other_num }} − {{ player.target_difference }} = {{ target_number }}</td>
+        </tr>
+        <tr>
+            <th>是否達成目標</th>
+            <td>{% if player.bonus %}是{% else %}否{% endif %}</td>
+        </tr>
+        <tr>
+            <th>本回合法幣報酬</th>
+            <td>{{ player.payoff }}</td>
+        </tr>
+        <tr>
+            <th>目前累計法幣報酬</th>
+            <td>{{ cumulative_payoff }}</td>
+        </tr>
+    </tbody>
+</table>
+
+<div class="d-flex justify-content-center mt-4">
+    {% next_button %}
+</div>
+{% endblock %}

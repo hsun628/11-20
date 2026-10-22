@@ -1,0 +1,102 @@
+{% extends "global/Page.html" %}
+{% load otree %}
+
+{% block styles %}
+<style>
+    .number-board-wrapper {
+        overflow-x: auto;
+        margin: 1.5rem 0;
+    }
+    .number-board {
+        display: grid;
+        grid-template-columns: repeat(10, minmax(54px, 1fr));
+        gap: 8px;
+        min-width: 620px;
+    }
+    .number-cell {
+        border: 2px solid #0d6efd;
+        border-radius: 8px;
+        padding: 12px 0;
+        background: #fff;
+        color: #0d6efd;
+        font-size: 18px;
+        font-weight: bold;
+        cursor: pointer;
+    }
+    .number-cell:hover,
+    .number-cell.selected {
+        background: #0d6efd;
+        color: #fff;
+    }
+    .number-cell:focus-visible {
+        outline: 3px solid #212529;
+        outline-offset: 2px;
+    }
+    #selection-warning {
+        display: none;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<h3 class="mb-3"><b>第 {{ player.round_number }} 回合</b></h3>
+<p class="mb-2">您的目標：選擇「對手數字 − {{ target_difference }}」。</p>
+
+<div id="selection-warning" class="alert alert-danger" role="alert">
+    請選擇一個數字格子。
+</div>
+
+<div style="display: none;">{{ form.num }}</div>
+<div class="number-board-wrapper">
+    <div class="number-board" role="group" aria-label="1 至 100 數字">
+        {% for row in number_rows %}
+            {% for number in row %}
+                <button
+                    type="button"
+                    class="number-cell"
+                    data-value="{{ number }}"
+                    aria-pressed="false"
+                >{{ number }}</button>
+            {% endfor %}
+        {% endfor %}
+    </div>
+</div>
+
+<div class="d-flex justify-content-center mt-4">
+    {% next_button %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const numberInput = document.getElementById('id_num');
+        const warning = document.getElementById('selection-warning');
+        const form = document.querySelector('form');
+        const cells = document.querySelectorAll('.number-cell');
+
+        numberInput.type = 'hidden';
+        cells.forEach(function (cell) {
+            cell.addEventListener('click', function () {
+                cells.forEach(function (item) {
+                    item.classList.remove('selected');
+                    item.setAttribute('aria-pressed', 'false');
+                });
+                cell.classList.add('selected');
+                cell.setAttribute('aria-pressed', 'true');
+                numberInput.value = cell.dataset.value;
+                warning.style.display = 'none';
+            });
+        });
+
+        document.getElementById('submit-selection').addEventListener('click', function () {
+            if (!numberInput.value) {
+                warning.style.display = 'block';
+                warning.scrollIntoView({behavior: 'smooth', block: 'center'});
+                return;
+            }
+            form.submit();
+        });
+    });
+</script>
+{% endblock %}
