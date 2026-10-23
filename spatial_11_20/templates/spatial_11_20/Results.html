@@ -2,36 +2,90 @@
 {% load otree %}
 
 {% block content %}
-<h3 class="mb-4"><b>第 {{ player.round_number }} 回合結果</b></h3>
+<style>
+    .after-feedback {
+        display: none;
+        margin-top: 0.5rem;
+        padding-top: 0.35rem;
+        border-top: 1px solid #dee2e6;
+        color: #6c757d;
+        font-weight: normal;
+    }
+</style>
 
-<table class="table table-bordered text-center">
-    <tbody>
+<h3 class="mb-4"><b>決策結果</b></h3>
+
+<table class="table text-center align-middle">
+    <thead>
         <tr>
+            <th>回合</th>
+            <th>回合類型</th>
             <th>您的數字</th>
-            <td>{{ player.num }}</td>
-        </tr>
-        <tr>
             <th>對手的數字</th>
-            <td>{{ player.other_num }}</td>
-        </tr>
-        <tr>
             <th>您的目標</th>
-            <td>{{ player.other_num }} − {{ player.target_difference }} = {{ target_number }}</td>
-        </tr>
-        <tr>
             <th>是否達成目標</th>
-            <td>{% if player.bonus %}是{% else %}否{% endif %}</td>
+            <th>回合報酬</th>
         </tr>
-        <tr>
-            <th>本回合法幣報酬</th>
-            <td>{{ player.payoff }}</td>
-        </tr>
-        <tr>
-            <th>目前累計法幣報酬</th>
-            <td>{{ cumulative_payoff }}</td>
-        </tr>
+    </thead>
+    <tbody>
+        {% for d in history %}
+            <tr {% if d.is_current %}style="background-color: #fff3cd; font-weight: bold;"{% endif %}>
+                <td>
+                    {{ d.round }} {% if d.is_current %}(此回合){% endif %}
+                    {% if d.is_reasoning_round %}
+                        <details data-feedback-toggle>
+                            <summary class="text-muted">展開</summary>
+                        </details>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if d.is_reasoning_round %}
+                        額外說明回合
+                        <details>
+                            <summary class="text-muted">查看理由</summary>
+                            <p class="mb-0 mt-2">{{ d.reason }}</p>
+                        </details>
+                    {% else %}
+                        一般回合
+                    {% endif %}
+                </td>
+                <td>
+                    {% if d.is_reasoning_round %}{{ d.initial_num }}{% elif d.revised_num != None %}更改前：{{ d.initial_num }}<br>更改後：{{ d.num }}{% else %}{{ d.num }}{% endif %}
+                    {% if d.is_reasoning_round %}<div class="after-feedback" data-feedback-cell>{{ d.num }}</div>{% endif %}
+                </td>
+                <td>
+                    {{ d.other_num }}
+                    {% if d.is_reasoning_round %}<div class="after-feedback" data-feedback-cell>-</div>{% endif %}
+                </td>
+                <td>
+                    {% if d.is_reasoning_round %}-{% else %}{{ d.other_num }} − {{ d.target_difference }} = {{ d.target_number }}{% endif %}
+                    {% if d.is_reasoning_round %}<div class="after-feedback" data-feedback-cell>-</div>{% endif %}
+                </td>
+                <td>
+                    {% if d.is_reasoning_round %}-{% elif d.bonus %}是{% else %}否{% endif %}
+                    {% if d.is_reasoning_round %}<div class="after-feedback" data-feedback-cell>{% if d.bonus %}是{% else %}否{% endif %}</div>{% endif %}
+                </td>
+                <td>
+                    {% if d.is_reasoning_round %}-{% else %}{{ d.round_payoff }}{% endif %}
+                    {% if d.is_reasoning_round %}<div class="after-feedback" data-feedback-cell>-</div>{% endif %}
+                </td>
+            </tr>
+        {% endfor %}
     </tbody>
 </table>
+
+<script>
+    document.querySelectorAll("[data-feedback-toggle]").forEach(function(toggle) {
+        toggle.addEventListener("toggle", function() {
+            const row = toggle.closest("tr");
+            row.querySelectorAll("[data-feedback-cell]").forEach(function(cell) {
+                cell.style.display = toggle.open ? "block" : "none";
+            });
+        });
+    });
+</script>
+
+<p class="text-end">目前累計法幣報酬：<b>{{ cumulative_payoff }}</b></p>
 
 <div class="d-flex justify-content-center mt-4">
     {% next_button %}

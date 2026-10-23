@@ -172,37 +172,22 @@ class Results(Page):
 
         for p in player_history:
             other_num = p.other_num
-            other_revised_num = p.field_maybe_none("other_revised_num")
-            other_final_num = (
-                other_revised_num if other_revised_num is not None else other_num
-            )
-            final_num = (
-                p.revised_num
-                if p.field_maybe_none("revised_num") is not None
-                else p.num
-            )
-            comparison_bonus = final_num == other_final_num - 1
+            initial_bonus = p.num == other_num - 1
             history.append({
                 'round': p.round_number,
                 'initial_num': f"{p.num}",
                 'revised_num': p.field_maybe_none("revised_num"),
                 'num': f"{p.revised_num if p.field_maybe_none('revised_num') is not None else p.num}",
                 "other_num": f"{other_num}",
-                "other_changed": other_revised_num is not None,
-                "other_revised_num": other_revised_num,
-                "other_final_num": other_final_num,
                 "reason": (
                     player.in_round(p.round_number).reason
                     if p.round_number in reasoning_rounds else None
                 ),
                 'is_current': p.round_number == player.round_number,
                 'is_reasoning_round': p.round_number in reasoning_rounds,
+                'initial_bonus': initial_bonus,
                 'bonus': player.in_round(p.round_number).bonus,
-                'round_payoff': player.in_round(p.round_number).payoff,
-                'comparison_bonus': comparison_bonus,
-                'comparison_payoff': cu(
-                    final_num + (20 if comparison_bonus else 0)
-                )
+                'round_payoff': player.in_round(p.round_number).payoff
             })
 
         if player.round_number == C.NUM_ROUNDS:

@@ -8,7 +8,10 @@
         <p class="mb-4 text-center">
             <b>請先不要點擊下方按鈕或進行其它操作，等待實驗人員指示再開始實驗</b>
         </p>
-        
+        <p class="mb-4 text-center">
+            <p>點擊下方按鈕後，AI 將生成決策理由，並由獨立 ChatGPT 比較「您的理由」與「AI 的理由」。</p>
+            <p>請稍候 ChatGPT 判斷理由，判斷結果將於第四部分結束後公布。</p>
+        </p>
     </div>
 
     <div class="d-flex justify-content-center mt-4">
@@ -16,33 +19,26 @@
     </div>
 
     <script>
-        window.onload = function() {
-            var seconds = 90;
-            var nextButton = document.querySelector('.otree-btn-next');
-            var timerTextSpan = document.getElementById('seconds');
-            var timerContainer = document.getElementById('timer-text');
-            
+        document.addEventListener("DOMContentLoaded", function() {
+            const nextButton = document.querySelector(".otree-btn-next");
+            const countdownText = document.getElementById("next-countdown");
+            let secondsRemaining = 120;
 
-            if (nextButton) {
-                nextButton.disabled = true;
+            if (!nextButton) {
+                return;
             }
 
-            var countdown = setInterval(function() {
-                seconds--;
-                if (timerTextSpan) {
-                    timerTextSpan.innerText = seconds;
+            nextButton.disabled = true;
+            const countdown = window.setInterval(function() {
+                secondsRemaining -= 1;
+                if (secondsRemaining <= 0) {
+                    nextButton.disabled = false;
+                    countdownText.textContent = "Next 已解鎖。";
+                    window.clearInterval(countdown);
+                    return;
                 }
-
-                if (seconds <= 0) {
-                    if (nextButton) {
-                        nextButton.disabled = false;
-                    }
-                    if (timerContainer) {
-                        timerContainer.style.display = 'none'; 
-                    }
-                    clearInterval(countdown);
-                }
+                countdownText.textContent = `Next 將於 ${secondsRemaining} 秒後解鎖。`;
             }, 1000);
-        };
+        });
     </script>
 {% endblock %}

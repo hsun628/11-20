@@ -195,18 +195,17 @@ class Results(Page):
                 if p.field_maybe_none("revised_num") is not None
                 else p.num
             )
-            other_revised_num = p.field_maybe_none("other_revised_num")
-            other_final_num = (
-                other_revised_num
-                if other_revised_num is not None
-                else p.other_num
+            initial_mean = (p.num + p.other_num) / C.PLAYERS_PER_GROUP
+            initial_target = round(0.7 * initial_mean, 2)
+            initial_player_distance = round(abs(p.num - initial_target), 2)
+            initial_opponent_distance = round(
+                abs(p.other_num - initial_target), 2
             )
-            comparison_target = round(
-                0.7 * ((final_num + other_final_num) / 2), 2
-            )
-            comparison_winner = (
-                abs(final_num - comparison_target)
-                <= abs(other_final_num - comparison_target)
+            after_mean = (final_num + p.other_num) / C.PLAYERS_PER_GROUP
+            after_target = round(0.7 * after_mean, 2)
+            after_player_distance = round(abs(final_num - after_target), 2)
+            after_opponent_distance = round(
+                abs(p.other_num - after_target), 2
             )
             history.append({
                 'round': p.round_number,
@@ -214,21 +213,19 @@ class Results(Page):
                 'revised_num': p.field_maybe_none("revised_num"),
                 'num': f"{p.revised_num if p.field_maybe_none('revised_num') is not None else p.num}",
                 'other_num': p.other_num,
-                'other_changed': other_revised_num is not None,
-                'other_revised_num': other_revised_num,
-                'other_final_num': other_final_num,
                 'mean': f"{g.mean_number:.2f}",
                 "target": f"{p.target_number:.2f}",
+                'initial_mean': f"{initial_mean:.2f}",
+                'initial_target': f"{initial_target:.2f}",
+                'initial_bonus': initial_player_distance <= initial_opponent_distance,
+                'after_mean': f"{after_mean:.2f}",
+                'after_target': f"{after_target:.2f}",
+                'after_bonus': after_player_distance <= after_opponent_distance,
                 "reason": player.in_round(p.round_number).reason if g.round_number in reasoning_rounds else None,
                 'is_current': p.round_number == player.round_number,
                 'is_reasoning_round': p.round_number in reasoning_rounds,
                 'bonus': player.in_round(p.round_number).bonus_2,
-                'round_payoff': player.in_round(p.round_number).payoff,
-                'comparison_target': f"{comparison_target:.2f}",
-                'comparison_winner': comparison_winner,
-                'comparison_payoff': cu(
-                    C.Winner_Reward if comparison_winner else 0
-                )
+                'round_payoff': player.in_round(p.round_number).payoff
             })
 
         if player.round_number == C.NUM_ROUNDS:

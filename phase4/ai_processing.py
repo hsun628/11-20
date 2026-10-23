@@ -18,7 +18,7 @@ client = OpenAI(api_key=my_api_key)
 
 
 class C(BaseConstants):
-    NAME_IN_URL = "phase_AI_prepare"
+    NAME_IN_URL = "phase4"
     PLAYERS_PER_GROUP = 2
     NUM_ROUNDS = 3 if DEBUG else 10
     Pass_Reward_p2 = 40
@@ -178,30 +178,10 @@ def gpt_judge(experimental_rules, reasoning_1, reasoning_2, is_flipped_value):
     return final_winner, gpt_analysis
 
 
-class Subsession(BaseSubsession):
-    def creating_session(self):
-        if self.round_number == 1:
-            self.group_like_round("phase_1", 1)
-
-
-class Group(BaseGroup):
-    pass
-
-
 _thread_storage = {}
 
 
-class Player(BasePlayer):
-    is_gpt_finished = models.BooleanField(initial=False)
-    payoff_by_reasoning = models.BooleanField(blank=True)
-    payoff_by_reasoning_2 = models.BooleanField(blank=True)
-    gpt_reason = models.LongStringField()
-    gpt_analysis = models.LongStringField()
-    winner_type = models.StringField()
-    gpt_reason_2 = models.LongStringField()
-    gpt_analysis_2 = models.LongStringField()
-    winner_type_2 = models.StringField()
-
+class AIProcessor:
     def gpt_process(self, participant_vars):
         p_id = participant_vars["id_in_subsession"]
         phase2_history = [dict(h) for h in participant_vars.get("phase2_history", [])]
@@ -253,6 +233,7 @@ class Player(BasePlayer):
                         "winner_type": winner,
                         "result_text": "您的理由較具體" if winner in ["Human", "Tie"] else "AI生成的理由較具體",
                         "payoff_basis": payoff_basis,
+                        "payoff_by_reasoning": payoff_by_reasoning,
                         "final_payoff": final,
                     })
                     p2_db_data[r] = {
@@ -283,6 +264,7 @@ class Player(BasePlayer):
                         "winner_type_2": winner,
                         "result_text_2": "您的理由較具體" if winner in ["Human", "Tie"] else "AI生成的理由較具體",
                         "payoff_basis_2": payoff_basis_2,
+                        "payoff_by_reasoning_2": payoff_by_reasoning_2,
                         "final_payoff_2": final,
                     })
                     p3_db_data[r] = {
@@ -307,85 +289,3 @@ class Player(BasePlayer):
                 "status": "error",
                 "error": "AI processing failed. Check the server log for details.",
             }
-
-
-class InstructionPage(Page):
-    @staticmethod
-    def is_displayed(player):
-        return player.round_number == 1
-
-
-class Phase3CompleteWaitPage(WaitPage):
-    title_text = "請等待所有受試者完成實驗第三部分"
-    wait_for_all_groups = True
-
-
-class ProcessingPage(Page):
-    @staticmethod
-    def is_displayed(player):
-        return player.round_number == 1
-
-    @staticmethod
-    def live_method(player, data):
-        p_id = player.id_in_subsession
-
-        if data.get("type") == "API_start":
-            if not player.is_gpt_finished and p_id not in _thread_storage:
-                participant_vars = dict(player.participant.vars)
-                participant_vars["id_in_subsession"] = p_id
-                participant_vars["phase2_reasoning_rounds"] = player.session.vars[
-                    "phase2_reasoning_rounds"
-                ]
-                participant_vars["phase3_reasoning_rounds"] = player.session.vars[
-                    "phase3_reasoning_rounds"
-                ]
-                thread = threading.Thread(target=player.gpt_process, args=(participant_vars,))
-                thread.daemon = True
-                thread.start()
-            return {player.id_in_group: {"status": "started"}}
-
-        if data.get("type") == "check_status":
-            output = _thread_storage.get(p_id)
-            if output and output.get("status") == "done":
-                player.participant.vars["phase2_history"] = output["phase2_history"]
-                player.participant.vars["phase3_history"] = output["phase3_history"]
-                player.participant.vars["total_phase2_payoff"] = output["total_phase2_payoff"]
-                player.participant.vars["total_phase3_payoff"] = output["total_phase3_payoff"]
-                player.participant.vars["ai_p2_db_data"] = output["p2_db_data"]
-                player.participant.vars["ai_p3_db_data"] = output["p3_db_data"]
-
-                for r, values in output["p2_db_data"].items():
-                    target = player.in_round(int(r))
-                    target.gpt_reason = values["gpt_reason"]
-                    target.gpt_analysis = values["gpt_analysis"]
-                    target.winner_type = values["winner_type"]
-                    target.payoff_by_reasoning = values["payoff_by_reasoning"]
-
-                for r, values in output["p3_db_data"].items():
-                    target = player.in_round(int(r))
-                    target.gpt_reason_2 = values["gpt_reason_2"]
-                    target.gpt_analysis_2 = values["gpt_analysis_2"]
-                    target.winner_type_2 = values["winner_type_2"]
-                    target.payoff_by_reasoning_2 = values["payoff_by_reasoning_2"]
-
-                player.is_gpt_finished = True
-                del _thread_storage[p_id]
-                return {player.id_in_group: {"status": "finished"}}
-            if output and output.get("status") == "error":
-                del _thread_storage[p_id]
-                return {player.id_in_group: {"status": "error", "message": output["error"]}}
-
-            return {player.id_in_group: {"status": "processing"}}
-
-
-class PrepareWaitPage(WaitPage):
-    title_text = "請等待AI處理其他受試者理由"
-    wait_for_all_groups = True
-
-
-page_sequence = [
-    Phase3CompleteWaitPage,
-    InstructionPage,
-    ProcessingPage,
-    PrepareWaitPage,
-]

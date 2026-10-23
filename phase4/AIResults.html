@@ -3,18 +3,48 @@
 
 {% block content %}
 <style>
-    .results-table-wrapper {
-        overflow-x: auto;
+    .phase2-results-table {
+        width: 100%;
+        table-layout: auto;
     }
 
-    .results-table-wrapper table {
-        width: max-content;
-        min-width: 100%;
+    .results-table th,
+    .results-table td {
+        white-space: normal;
+        overflow-wrap: anywhere;
+        padding: 0.4rem 0.25rem;
+        vertical-align: middle;
     }
 
-    .results-table-wrapper th,
-    .results-table-wrapper td {
-        white-space: nowrap;
+    .phase3-results-table {
+        width: 100%;
+        table-layout: fixed;
+        font-size: 0.9rem;
+    }
+
+    .phase3-results-table col:nth-child(1) { width: 5%; }
+    .phase3-results-table col:nth-child(2) { width: 13%; }
+    .phase3-results-table col:nth-child(3) { width: 8%; }
+    .phase3-results-table col:nth-child(4) { width: 8%; }
+    .phase3-results-table col:nth-child(5) { width: 10%; }
+    .phase3-results-table col:nth-child(6) { width: 10%; }
+    .phase3-results-table col:nth-child(7) { width: 9%; }
+    .phase3-results-table col:nth-child(8) { width: 14%; }
+    .phase3-results-table col:nth-child(9) { width: 13%; }
+    .phase3-results-table col:nth-child(10) { width: 10%; }
+
+    @media (max-width: 576px) {
+        .phase3-results-table {
+            font-size: 0.75rem;
+        }
+        .phase3-results-table th,
+        .phase3-results-table td {
+            padding: 0.3rem 0.15rem;
+        }
+    }
+    .feedback-pair .feedback-separator {
+        color: #6c757d;
+        padding: 0 0.25rem;
     }
 </style>
 
@@ -28,17 +58,16 @@
     </div>
 
     <div id="phase2-content">
-        <div class="results-table-wrapper">
-        <table class="table text-center align-middle">
+        <table class="table text-center results-table phase2-results-table">
             <thead>
                 <tr>
                     <th>回合</th>
                     <th>回合類型</th>
                     <th>您的數字</th>
-                    <th>對手的數字</th>
-                    <th>是否為數字贏家</th>
+                    <th>對手<br>一開始的數字</th>
+                    <th>是否為<br>數字贏家</th>
                     <th>理由判斷結果</th>
-                    <th>報酬依據</th>
+                    <th>是否以<br>理由決定報酬</th>
                     <th>回合報酬</th>
                 </tr>
             </thead>
@@ -46,33 +75,46 @@
             {% for entry in phase2_history %}
                 <tr class="{% if entry.is_reasoning_round %}table-warning{% endif %}">
                     <td>{{ entry.round }}</td>
-                    <td>{% if entry.is_reasoning_round %}<b>額外說明回合</b>{% else %}一般回合{% endif %}</td>
-                    <td>{{ entry.num }}</td>
+                    <td>{% if entry.is_reasoning_round %}<b>額外說明回合</b><span class="text-muted"><br>(一開始 → 最終選擇)</span>{% else %}一般回合{% endif %}</td>
+                    <td>
+                        {% if entry.is_reasoning_round %}
+                            <span class="feedback-pair">{{ entry.initial_num }}<span class="feedback-separator">→</span>{% if entry.revised_num != None %}{{ entry.revised_num }}{% else %}{{ entry.initial_num }}{% endif %}</span>
+                        {% else %}
+                            {{ entry.num }}
+                        {% endif %}
+                    </td>
                     <td>{{ entry.other_num }}</td>
-                    <td>{% if entry.bonus %}是{% else %}否{% endif %}</td>
+                    <td>
+                        {% if entry.is_reasoning_round %}
+                            <span class="feedback-pair">{% if entry.initial_bonus %}是{% else %}否{% endif %}<span class="feedback-separator">→</span><strong>{% if entry.bonus %}是{% else %}否{% endif %}</strong></span>
+                        {% elif entry.bonus %}是{% else %}否{% endif %}
+                    </td>
                     <td>{{ entry.result_text }}</td>
-                    <td>{% if entry.is_reasoning_round %}{% if entry.payoff_basis %}{{ entry.payoff_basis }}{% else %}-{% endif %}{% else %}-{% endif %}</td>
+                    <td>{% if entry.is_reasoning_round %}{% if entry.payoff_by_reasoning == None %}-{% elif entry.payoff_by_reasoning %}是{% else %}否{% endif %}{% else %}-{% endif %}</td>
                     <td class="fw-bold">{{ entry.final_payoff }}</td>
                 </tr>
             {% endfor %}
             </tbody>
         </table>
-        </div>
         <p class="text-end">第二部分總報酬：<b>{{ total_phase2_payoff }}</b>法幣</p>
     </div>
 
     <div id="phase3-content" class="d-none">
-        <div class="results-table-wrapper">
-        <table class="table text-center align-middle">
+        <table class="table text-center results-table phase3-results-table">
+            <colgroup>
+                <col><col><col><col><col><col><col><col><col><col>
+            </colgroup>
             <thead>
                 <tr>
                     <th>回合</th>
                     <th>回合類型</th>
                     <th>您的數字</th>
+                    <th>對手<br>一開始的數字</th>
                     <th>平均數字</th>
-                    <th>您的目標數字</th>
-                    <th>是否為數字贏家</th>
-                    <th>報酬依據</th>
+                    <th>目標數字</th>
+                    <th>是否為<br>數字贏家</th>
+                    <th>理由判斷結果</th>
+                    <th>是否以<br>理由決定報酬</th>
                     <th>回合報酬</th>
                 </tr>
             </thead>
@@ -80,18 +122,41 @@
             {% for entry in phase3_history %}
                 <tr class="{% if entry.is_reasoning_round %}table-warning{% endif %}">
                     <td>{{ entry.round }}</td>
-                    <td>{% if entry.is_reasoning_round %}<b>額外說明回合</b>{% else %}一般回合{% endif %}</td>
-                    <td>{{ entry.num }}</td>
-                    <td>{{ entry.mean }}</td>
-                    <td>{{ entry.target }}</td>
-                    <td>{% if entry.bonus %}是{% else %}否{% endif %}</td>
-                    <td>{% if entry.is_reasoning_round %}{{ entry.payoff_basis_2 }}{% else %}-{% endif %}</td>
+                    <td>{% if entry.is_reasoning_round %}<b>額外說明回合</b><span class="text-muted"><br>(一開始 → 最終選擇)</span>{% else %}一般回合{% endif %}</td>
+                    <td>
+                        {% if entry.is_reasoning_round %}
+                            <span class="feedback-pair">{{ entry.initial_num }}<span class="feedback-separator">→</span>{% if entry.revised_num != None %}{{ entry.revised_num }}{% else %}{{ entry.initial_num }}{% endif %}</span>
+                        {% else %}
+                            {{ entry.num }}
+                        {% endif %}
+                    </td>
+                    <td>{{ entry.other_num }}</td>
+                    <td>
+                        {% if entry.is_reasoning_round %}
+                            <span class="feedback-pair">{{ entry.initial_mean }}<span class="feedback-separator">→</span>{{ entry.after_mean }}</span>
+                        {% else %}
+                            {{ entry.mean }}
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if entry.is_reasoning_round %}
+                            <span class="feedback-pair">{{ entry.initial_target }}<span class="feedback-separator">→</span>{{ entry.after_target }}</span>
+                        {% else %}
+                            {{ entry.target }}
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if entry.is_reasoning_round %}
+                            <span class="feedback-pair">{% if entry.initial_bonus %}是{% else %}否{% endif %}<span class="feedback-separator">→</span><strong>{% if entry.after_bonus %}是{% else %}否{% endif %}</strong></span>
+                        {% elif entry.bonus %}是{% else %}否{% endif %}
+                    </td>
+                    <td>{% if entry.is_reasoning_round %}{{ entry.result_text_2 }}{% else %}-{% endif %}</td>
+                    <td>{% if entry.is_reasoning_round %}{% if entry.payoff_by_reasoning_2 == None %}-{% elif entry.payoff_by_reasoning_2 %}是{% else %}否{% endif %}{% else %}-{% endif %}</td>
                     <td class="fw-bold">{{ entry.final_payoff_2 }}</td>
                 </tr>
             {% endfor %}
             </tbody>
         </table>
-        </div>
         <p class="text-end">第三部分總報酬：<b>{{ total_phase3_payoff }}</b>法幣</p>
     </div>
 
@@ -101,27 +166,57 @@
 
 <script>
     document.addEventListener("DOMContentLoaded", function() {
+        const nextButton = document.querySelector(".otree-btn-next");
         const phase2Tab = document.getElementById("phase2-tab");
         const phase3Tab = document.getElementById("phase3-tab");
         const phase2Content = document.getElementById("phase2-content");
         const phase3Content = document.getElementById("phase3-content");
 
+        function showPhase(phase) {
+            const showPhase3 = phase === 3;
+            phase2Tab.classList.toggle("btn-primary", !showPhase3);
+            phase2Tab.classList.toggle("btn-outline-primary", showPhase3);
+            phase3Tab.classList.toggle("btn-primary", showPhase3);
+            phase3Tab.classList.toggle("btn-outline-primary", !showPhase3);
+            phase2Content.classList.toggle("d-none", showPhase3);
+            phase3Content.classList.toggle("d-none", !showPhase3);
+        }
+
         phase2Tab.addEventListener("click", function() {
-            phase2Tab.classList.add("btn-primary");
-            phase2Tab.classList.remove("btn-outline-primary");
-            phase3Tab.classList.add("btn-outline-primary");
-            phase3Tab.classList.remove("btn-primary");
-            phase2Content.classList.remove("d-none");
-            phase3Content.classList.add("d-none");
+            showPhase(2);
         });
 
+        let hasEnteredPhase3 = false;
+
         phase3Tab.addEventListener("click", function() {
-            phase3Tab.classList.add("btn-primary");
-            phase3Tab.classList.remove("btn-outline-primary");
-            phase2Tab.classList.add("btn-outline-primary");
-            phase2Tab.classList.remove("btn-primary");
-            phase3Content.classList.remove("d-none");
-            phase2Content.classList.add("d-none");
+            hasEnteredPhase3 = true;
+            showPhase(3);
+        });
+
+        const form = document.getElementById("form");
+        form.addEventListener("click", function(event) {
+            if (event.target.closest(".otree-btn-next") && !hasEnteredPhase3) {
+                event.preventDefault();
+                event.stopImmediatePropagation();
+                hasEnteredPhase3 = true;
+                showPhase(3);
+                if (nextButton) {
+                    nextButton.disabled = false;
+                    nextButton.removeAttribute("disabled");
+                }
+            }
+        }, true);
+
+        form.addEventListener("submit", function(event) {
+            if (!hasEnteredPhase3) {
+                event.preventDefault();
+                hasEnteredPhase3 = true;
+                showPhase(3);
+                if (nextButton) {
+                    nextButton.disabled = false;
+                    nextButton.removeAttribute("disabled");
+                }
+            }
         });
     });
 </script>
