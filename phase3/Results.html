@@ -57,13 +57,6 @@
                 </td>
                 <td>
                     {% if d.is_reasoning_round %}
-                        <span class="feedback-pair">{{ d.other_num }}</span>
-                    {% else %}
-                        {{ d.other_num }}
-                    {% endif %}
-                </td>
-                <td>
-                    {% if d.is_reasoning_round %}
                         <span class="feedback-pair">{{ d.initial_mean }}<span class="feedback-separator">→</span>{{ d.after_mean }}</span>
                     {% else %}
                         {{ d.mean }}

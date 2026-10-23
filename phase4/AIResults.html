@@ -16,32 +16,6 @@
         vertical-align: middle;
     }
 
-    .phase3-results-table {
-        width: 100%;
-        table-layout: fixed;
-        font-size: 0.9rem;
-    }
-
-    .phase3-results-table col:nth-child(1) { width: 5%; }
-    .phase3-results-table col:nth-child(2) { width: 13%; }
-    .phase3-results-table col:nth-child(3) { width: 8%; }
-    .phase3-results-table col:nth-child(4) { width: 8%; }
-    .phase3-results-table col:nth-child(5) { width: 10%; }
-    .phase3-results-table col:nth-child(6) { width: 10%; }
-    .phase3-results-table col:nth-child(7) { width: 9%; }
-    .phase3-results-table col:nth-child(8) { width: 14%; }
-    .phase3-results-table col:nth-child(9) { width: 13%; }
-    .phase3-results-table col:nth-child(10) { width: 10%; }
-
-    @media (max-width: 576px) {
-        .phase3-results-table {
-            font-size: 0.75rem;
-        }
-        .phase3-results-table th,
-        .phase3-results-table td {
-            padding: 0.3rem 0.15rem;
-        }
-    }
     .feedback-pair .feedback-separator {
         color: #6c757d;
         padding: 0 0.25rem;
@@ -100,16 +74,12 @@
     </div>
 
     <div id="phase3-content" class="d-none">
-        <table class="table text-center results-table phase3-results-table">
-            <colgroup>
-                <col><col><col><col><col><col><col><col><col><col>
-            </colgroup>
+        <table class="table text-center align-middle">
             <thead>
                 <tr>
                     <th>回合</th>
                     <th>回合類型</th>
                     <th>您的數字</th>
-                    <th>對手<br>一開始的數字</th>
                     <th>平均數字</th>
                     <th>目標數字</th>
                     <th>是否為<br>數字贏家</th>
@@ -130,7 +100,6 @@
                             {{ entry.num }}
                         {% endif %}
                     </td>
-                    <td>{{ entry.other_num }}</td>
                     <td>
                         {% if entry.is_reasoning_round %}
                             <span class="feedback-pair">{{ entry.initial_mean }}<span class="feedback-separator">→</span>{{ entry.after_mean }}</span>
