@@ -30,7 +30,6 @@ def get_openai_client():
 
 class C(BaseConstants):
     NAME_IN_URL = "phase4"
-    PLAYERS_PER_GROUP = 2
     NUM_ROUNDS = 3 if DEBUG else 10
     Pass_Reward_p2 = 40
     Pass_Reward_p3 = 40
