@@ -8,7 +8,9 @@ BASE_DIR = Path(__file__).resolve().parent
 PRODUCTION = environ.get('OTREE_PRODUCTION')
 DEBUG = not PRODUCTION
 
-# num_participant = int(environ.get("NUM_PARTICIPANT"))
+num_participant = int(
+    environ.get("NUM_PARTICIPANT") or environ.get("num_participant") or 4
+)
 
 # -------------------
 # SESSION CONFIGS
@@ -17,7 +19,7 @@ SESSION_CONFIGS = [
     dict(
         name = '11_20',
         display_name = "11_20",
-        num_demo_participants = 4, # if DEBUG else num_participant,
+        num_demo_participants = 4 if DEBUG else num_participant,
         app_sequence = ['phase1', 'phase2', 'phase3', 'phase4'],
     ),
 ]
@@ -38,10 +40,15 @@ REAL_WORLD_CURRENCY_DECIMAL_PLACES = 0
 USE_POINTS = False
 
 # -------------------
+# AUTHENTICATION
+# -------------------
+AUTH_LEVEL = environ.get("OTREE_AUTH_LEVEL")
+
+# -------------------
 # ADMIN
 # -------------------
 ADMIN_USERNAME = 'admin'
-ADMIN_PASSWORD = environ.get("OTREE_ADMIN_PASSWORD") or 'tassel'
+ADMIN_PASSWORD = environ.get("OTREE_ADMIN_PASSWORD") or 'tassel505'
 
 # optional HTML for demo page
 DEMO_PAGE_INTRO_HTML = ""

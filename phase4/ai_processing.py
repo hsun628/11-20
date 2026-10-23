@@ -12,9 +12,20 @@ from settings import DEBUG
 
 load_dotenv()
 
-my_api_key = os.getenv("api_key")
 model_used = "gpt-5.4"
-client = OpenAI(api_key=my_api_key)
+
+
+def get_openai_client():
+    api_key = (
+        os.getenv("OPENAI_API_KEY")
+        or os.getenv("API_KEY")
+        or os.getenv("api_key")
+    )
+    if not api_key:
+        raise RuntimeError(
+            "Missing OpenAI API key. Set OPENAI_API_KEY in the app environment."
+        )
+    return OpenAI(api_key=api_key)
 
 
 class C(BaseConstants):
@@ -70,6 +81,7 @@ def gpt_generate(experimental_rules, round_number, participant_decision):
             }}
     """
 
+    client = get_openai_client()
     for attempt in range(3):
         try:
             response = client.chat.completions.create(
@@ -151,6 +163,7 @@ def gpt_judge(experimental_rules, reasoning_1, reasoning_2, is_flipped_value):
         }}
     """
 
+    client = get_openai_client()
     response = client.chat.completions.create(
         model=model_used,
         messages=[

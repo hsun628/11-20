@@ -2,7 +2,7 @@
 
 from otree.api import *
 from settings import DEBUG
-# from settings import num_participant
+from settings import num_participant
 
 class C(BaseConstants):
     NAME_IN_URL = 'phase1'

@@ -30,5 +30,6 @@ Part II and Part III each draw one reasoning round from every interval in `reaso
 ***
 
 ### setup instructions:
-  1. create a `.env` file in the root directory and add your own `api_key`.
-  2. adjust `num_participant` and `debug` mode in `settings.py`.
+  1. For local use, create a `.env` file in the root directory and set `OPENAI_API_KEY`.
+  2. On Heroku, configure `OPENAI_API_KEY`, `NUM_PARTICIPANT`, `OTREE_PRODUCTION=1`, `OTREE_ADMIN_PASSWORD`, and `OTREE_SECRET_KEY` as Config Vars. Do not commit API keys or passwords.
+  3. `NUM_PARTICIPANT` defaults to 4 when omitted. The app can start without an OpenAI key, but AI processing requires `OPENAI_API_KEY`.

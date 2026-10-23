@@ -3,7 +3,7 @@
 from otree.api import *
 from settings import DEBUG
 from reasoning_rounds import draw_reasoning_rounds
-# from settings import num_participant
+from settings import num_participant
 
 class C(BaseConstants):
     NAME_IN_URL = 'phase3'
