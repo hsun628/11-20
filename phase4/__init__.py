@@ -8,7 +8,7 @@ import threading
 
 class C(BaseConstants):
     NAME_IN_URL = 'phase4'
-    PLAYERS_PER_GROUP = 2 # if DEBUG else int(num_participant)
+    PLAYERS_PER_GROUP = 4 # if DEBUG else int(num_participant)
     NUM_ROUNDS = 3 if DEBUG else 10
     Prediction_Reward = 50
 
