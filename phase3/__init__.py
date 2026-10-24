@@ -247,7 +247,7 @@ class Results(Page):
                 if p.field_maybe_none("revised_num") is not None
                 else p.num
             )
-            initial_mean = round(sum(member.num for member in group_players) / group_size, 2)
+            initial_mean = sum(member.num for member in group_players) / group_size
             initial_target = 0.7 * sum(
                 member.num for member in group_players
             ) / group_size
