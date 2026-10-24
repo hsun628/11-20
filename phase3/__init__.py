@@ -1,5 +1,7 @@
 # models
 
+import random
+
 from otree.api import *
 from settings import DEBUG
 from reasoning_rounds import draw_reasoning_rounds
@@ -16,9 +18,19 @@ class Subsession(BaseSubsession):
 
 def creating_session(subsession):
     if subsession.round_number == 1:
+        num_players = len(subsession.get_players())
+        if num_players % 2:
+            raise ValueError("Phase 3 requires an even number of participants.")
+        midpoint = num_players // 2
+        subsession.set_group_matrix([
+            list(range(1, midpoint + 1)),
+            list(range(midpoint + 1, num_players + 1)),
+        ])
         subsession.session.vars['phase3_reasoning_rounds'] = draw_reasoning_rounds(
             C.NUM_ROUNDS
         )
+    else:
+        subsession.group_like_round(1)
     is_reasoning_round = subsession.round_number in subsession.session.vars[
         'phase3_reasoning_rounds'
     ]
@@ -33,29 +45,63 @@ class Group(BaseGroup):
 
 def set_payoffs(subsession: Subsession): # because we use wait_for_all_groups
     for group in subsession.get_groups():
+        players = group.get_players()
+        group_size = len(players)
+        tie_breaks = {}
+        initial_numbers = {
+            p.id_in_group: p.num
+            for p in players
+        }
         final_numbers = {
             p.id_in_group: (
                 p.revised_num
                 if p.field_maybe_none("revised_num") is not None
                 else p.num
             )
-            for p in group.get_players()
+            for p in players
         }
-        all_num = [final_numbers[p.id_in_group] for p in group.get_players()]
-        
-        group.mean_number = sum(all_num) / C.PLAYERS_PER_GROUP
+        group.mean_number = sum(initial_numbers.values()) / group_size
 
-        for p in group.get_players():
+        for p in players:
             final_num = final_numbers[p.id_in_group]
-            other = p.get_others_in_group()[0]
-            other_initial_num = other.num
+            other_players = [
+                other for other in players if other.id_in_group != p.id_in_group
+            ]
+            other_initial_numbers = [
+                initial_numbers[other.id_in_group] for other in other_players
+            ]
+            other = other_players[0]
             other_revised_num = other.field_maybe_none("revised_num")
-            p.other_num = other_initial_num
+            p.other_num = other_initial_numbers[0]
             p.other_revised_num = other_revised_num
-            p.target_number = round(0.7 * ((final_num + other_initial_num) / 2), 2)
-            p.distance = round(abs(final_num - p.target_number), 2)
-            opponent_distance = round(abs(other_initial_num - p.target_number), 2)
-            p.bonus_2 = p.distance <= opponent_distance
+            average_number = (
+                final_num + sum(other_initial_numbers)
+            ) / group_size
+            p.target_number = 0.7 * average_number
+            p.distance = abs(final_num - p.target_number)
+            comparison_numbers = {
+                p.id_in_group: final_num,
+                **{
+                    other_player.id_in_group: other_initial_numbers[index]
+                    for index, other_player in enumerate(other_players)
+                },
+            }
+            distances = {
+                player_id: abs(number - p.target_number)
+                for player_id, number in comparison_numbers.items()
+            }
+            closest_distance = min(distances.values())
+            closest_players = tuple(
+                sorted(
+                    player_id
+                    for player_id, distance in distances.items()
+                    if distance == closest_distance
+                )
+            )
+            tie_key = (p.target_number, tuple(sorted(distances.items())))
+            if tie_key not in tie_breaks:
+                tie_breaks[tie_key] = random.choice(closest_players)
+            p.bonus_2 = tie_breaks[tie_key] == p.id_in_group
             p.payoff = cu(C.Winner_Reward if p.bonus_2 else 0)
 
             p.participant.vars[f'initial_num_2_{p.round_number}'] = p.num
@@ -113,9 +159,8 @@ class InstructionPage(Page):
         return player.round_number == 1
     
     def vars_for_template(player):
-        num_player_per_group = C.PLAYERS_PER_GROUP
         return {
-            "group_size": int(num_player_per_group)
+            "group_size": len(player.group.get_players())
         }
 
 class Phase3StartWaitPage(WaitPage):
@@ -190,23 +235,31 @@ class Results(Page):
 
         for p in player_history:
             g = p.group
+            group_players = g.get_players()
+            group_size = len(group_players)
+            other_initial_numbers = [
+                member.num
+                for member in group_players
+                if member.id_in_group != p.id_in_group
+            ]
             final_num = (
                 p.revised_num
                 if p.field_maybe_none("revised_num") is not None
                 else p.num
             )
-            initial_mean = (p.num + p.other_num) / C.PLAYERS_PER_GROUP
-            initial_target = round(0.7 * initial_mean, 2)
-            initial_player_distance = round(abs(p.num - initial_target), 2)
-            initial_opponent_distance = round(
-                abs(p.other_num - initial_target), 2
-            )
-            after_mean = (final_num + p.other_num) / C.PLAYERS_PER_GROUP
-            after_target = round(0.7 * after_mean, 2)
-            after_player_distance = round(abs(final_num - after_target), 2)
-            after_opponent_distance = round(
-                abs(p.other_num - after_target), 2
-            )
+            initial_mean = round(sum(member.num for member in group_players) / group_size, 2)
+            initial_target = 0.7 * sum(
+                member.num for member in group_players
+            ) / group_size
+            initial_player_distance = abs(p.num - initial_target)
+            initial_opponent_distances = [
+                abs(other_num - initial_target)
+                for other_num in other_initial_numbers
+            ]
+            after_mean = (
+                final_num + sum(other_initial_numbers)
+            ) / group_size
+            after_target = 0.7 * after_mean
             history.append({
                 'round': p.round_number,
                 'initial_num': f"{p.num}",
@@ -217,10 +270,13 @@ class Results(Page):
                 "target": f"{p.target_number:.2f}",
                 'initial_mean': f"{initial_mean:.2f}",
                 'initial_target': f"{initial_target:.2f}",
-                'initial_bonus': initial_player_distance <= initial_opponent_distance,
+                'initial_bonus': all(
+                    initial_player_distance <= distance
+                    for distance in initial_opponent_distances
+                ),
                 'after_mean': f"{after_mean:.2f}",
                 'after_target': f"{after_target:.2f}",
-                'after_bonus': after_player_distance <= after_opponent_distance,
+                'after_bonus': player.in_round(p.round_number).bonus_2,
                 "reason": player.in_round(p.round_number).reason if g.round_number in reasoning_rounds else None,
                 'is_current': p.round_number == player.round_number,
                 'is_reasoning_round': p.round_number in reasoning_rounds,

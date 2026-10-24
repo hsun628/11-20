@@ -31,9 +31,10 @@ class Group(BaseGroup):
 
 def calculate_results(group:Group):
     for p in group.get_players():
+        p.is_correct = False
+        p.payoff = cu(0)
 
         if p.round_number not in reasoning_rounds_p2_for(p) or p.field_maybe_none("tp_id") is None:
-            p.payoff = cu(0)
             continue
 
         tp = [player for player in p.subsession.get_players() if player.id_in_subsession == p.tp_id][0]
@@ -61,6 +62,7 @@ def calculate_results(group:Group):
                        (p.prediction == "B" and real_winner_type == "Human"):
                         is_correct = True
 
+            p.is_correct = is_correct
             p.payoff = cu(C.Prediction_Reward) if is_correct else cu(0)
     
 class Player(BasePlayer):  
@@ -73,6 +75,7 @@ class Player(BasePlayer):
     gpt_reason_2 = models.LongStringField()
     gpt_analysis_2 = models.LongStringField()
     winner_type_2 = models.StringField()
+    is_correct = models.BooleanField(initial=False)
     prediction = models.StringField(
         choices = ["A", "Tie", "B"],
         widget = widgets.RadioSelectHorizontal,
@@ -234,8 +237,6 @@ class Results(Page):
     @staticmethod
     def vars_for_template(player):
         tp_id = player.tp_id 
-        prediction = player.prediction
-
         all_players = player.subsession.get_players()
         tp = all_players[tp_id - 1]
 
@@ -244,15 +245,7 @@ class Results(Page):
         current_entry = next((e for e in history if e.get("round") == player.round_number), {})
         real_winner = current_entry.get("winner_type")
 
-        is_correct = False
-        if prediction == "Tie":
-            is_correct = (real_winner == "Tie")
-        elif prediction == "A":
-            is_correct = (real_winner == "AI") if player.is_flipped else (real_winner == "Human")
-        elif prediction == "B":
-            is_correct = (real_winner == "Human") if player.is_flipped else (real_winner == "AI")
-
-        result_text = "正確" if is_correct else "錯誤"
+        result_text = "正確" if player.is_correct else "錯誤"
 
         reasoning_round_num = reasoning_rounds_p2_for(player).index(player.round_number) + 1
 
@@ -260,7 +253,7 @@ class Results(Page):
             "reason_a": player.participant.vars[f"reason_a_{player.round_number}"],
             "reason_b": player.participant.vars[f"reason_b_{player.round_number}"],
             "real_winner": real_winner,
-            "is_correct": is_correct,
+            "is_correct": player.is_correct,
             "result_text": result_text,
             "reasoning_round_num": reasoning_round_num
         }

@@ -35,19 +35,15 @@ class C(BaseConstants):
     Pass_Reward_p3 = 40
 
     experimental_rules = """
-        * Part II consists of 10 rounds. At the beginning of this part, the computer will randomly assign all participants into groups of two.
-        * In each round, both you and the other participant in your group (hereafter referred to as your "opponent") first choose an integer between 11 and 20. In reasoning rounds, you may optionally choose a different number on the following page and then explain the reason for your final choice.
-        * For the number-based payoff in a reasoning round, your final number is compared with your opponent's original number, regardless of whether your opponent later changes their choice. You receive experimental currency equal to your final number, plus 20 units if it is exactly one less than your opponent's original number.
-        * In reasoning rounds, the payoff is determined with equal probability by the AI's comparison of your reason with an AI-generated reason, or by the number-based payoff above. Other rounds use the number-based payoff.
-        * At the end of each round, the computer will display both players' original choices and the result; reasoning-round payoffs are finalized after the AI assessment.
+        * Part II consists of 10 rounds. At the beginning of each round, the computer will randomly assign all participants into groups of two.
+        * In each round, both you and the other participant in your group (hereafter referred to as your "opponent") first choose an integer between 11 and 20.
+        * Your payoff is the equal amount of experimental currenccy as your chosen number with a bonus of 20 if your number is exactly one less than your opponent's number.
         """
     experimental_rules_2 = """
-        * Part III consists of 10 rounds. At the beginning, the computer randomly divides all participants into groups, and the number of participants in each group will be displayed on the screen.
-        * In each round, all participants in your group first choose an integer between 0 and 100. In reasoning rounds, you may optionally choose a different number on the following page and then explain the reason for your final choice.
-        * Each participant's Target Number is 0.7 times the average of that participant's final number and their opponent's original number.
-        * Each participant compares their final number with their opponent's original number against their own Target Number. Anyone whose number is at least as close as their opponent's original number receives 100 units of experimental currency; both may receive the reward if equally close.
-        * In reasoning rounds, the payoff is determined with equal probability by the AI's comparison of your reason with an AI-generated reason, or by the number-based payoff above. Other rounds use the number-based payoff.
-        * The computer displays the group Average Number, your individual Target Number, whether you are a number-based winner, and the payoff for each round.
+        * Part III consists of 10 rounds. At the beginning of this part, the computer randomly divides all participants into groups. The members of each group will be fixed during this part, and the number of participants in each group will be displayed on the screen.
+        * In each round, you need to choose an integer between 0 and 100.
+        * Each participant's Target Number is 0.7 times the average of that group's numbers.
+        * For each group, the participant whose number is closest to the Target Number will be the winner of that round. If there is a tie, the winner will be randomly selected from the tied participants.
         """
 
 
@@ -89,7 +85,7 @@ def gpt_generate(experimental_rules, round_number, participant_decision):
                     {"role": "system", "content": generate_prompt},
                     {
                         "role": "user",
-                        "content": f"""Based on the round number: {round_number} and the provided decision: {participant_decision}, write a reasoning (about 30-40 characters in Traditional Chinese, 50 characters at most) explaining the underlying thoughts and the information used for the decision. Your response must strictly follow the specified JSON format.
+                        "content": f"""You are given the round number: {round_number} and the provided decision: {participant_decision}, write a reasoning (about 30-40 characters in Traditional Chinese, 50 characters at most) explaining the underlying thoughts and the information used for the decision. Your response must strictly follow the specified JSON format.
                     """,
                     },
                 ],
