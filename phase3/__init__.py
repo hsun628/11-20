@@ -46,8 +46,8 @@ class Group(BaseGroup):
 def set_payoffs(subsession: Subsession): # because we use wait_for_all_groups
     for group in subsession.get_groups():
         players = group.get_players()
-        group_size = len(players)
-        tie_breaks = {}
+        group_size = C.PLAYERS_PER_GROUP
+        after_tie_breaks = {}
         initial_numbers = {
             p.id_in_group: p.num
             for p in players
@@ -61,8 +61,23 @@ def set_payoffs(subsession: Subsession): # because we use wait_for_all_groups
             for p in players
         }
         group.mean_number = sum(initial_numbers.values()) / group_size
+        initial_target_number = 0.7 * group.mean_number
+        initial_distances = {
+            player_id: abs(number - initial_target_number)
+            for player_id, number in initial_numbers.items()
+        }
+        closest_initial_distance = min(initial_distances.values())
+        closest_initial_players = tuple(
+            sorted(
+                player_id
+                for player_id, distance in initial_distances.items()
+                if distance == closest_initial_distance
+            )
+        )
+        initial_winner_id = random.choice(closest_initial_players)
 
         for p in players:
+            p.initial_bonus = p.id_in_group == initial_winner_id
             final_num = final_numbers[p.id_in_group]
             other_players = [
                 other for other in players if other.id_in_group != p.id_in_group
@@ -99,9 +114,10 @@ def set_payoffs(subsession: Subsession): # because we use wait_for_all_groups
                 )
             )
             tie_key = (p.target_number, tuple(sorted(distances.items())))
-            if tie_key not in tie_breaks:
-                tie_breaks[tie_key] = random.choice(closest_players)
-            p.bonus_2 = tie_breaks[tie_key] == p.id_in_group
+            if tie_key not in after_tie_breaks:
+                after_tie_breaks[tie_key] = random.choice(closest_players)
+            p.after_bonus = after_tie_breaks[tie_key] == p.id_in_group
+            p.bonus_2 = p.after_bonus
             p.payoff = cu(C.Winner_Reward if p.bonus_2 else 0)
 
             p.participant.vars[f'initial_num_2_{p.round_number}'] = p.num
@@ -137,6 +153,8 @@ class Player(BasePlayer):
         blank=True
     )
     distance = models.FloatField()
+    initial_bonus = models.BooleanField(initial=False)
+    after_bonus = models.BooleanField(initial=False)
     reason = models.LongStringField(
         label = "請說明您選擇該數字的理由：",
         initial = "",
@@ -160,7 +178,7 @@ class InstructionPage(Page):
     
     def vars_for_template(player):
         return {
-            "group_size": len(player.group.get_players())
+            "group_size": C.PLAYERS_PER_GROUP
         }
 
 class Phase3StartWaitPage(WaitPage):
@@ -236,7 +254,7 @@ class Results(Page):
         for p in player_history:
             g = p.group
             group_players = g.get_players()
-            group_size = len(group_players)
+            group_size = C.PLAYERS_PER_GROUP
             other_initial_numbers = [
                 member.num
                 for member in group_players
@@ -251,11 +269,6 @@ class Results(Page):
             initial_target = 0.7 * sum(
                 member.num for member in group_players
             ) / group_size
-            initial_player_distance = abs(p.num - initial_target)
-            initial_opponent_distances = [
-                abs(other_num - initial_target)
-                for other_num in other_initial_numbers
-            ]
             after_mean = (
                 final_num + sum(other_initial_numbers)
             ) / group_size
@@ -270,13 +283,10 @@ class Results(Page):
                 "target": f"{p.target_number:.2f}",
                 'initial_mean': f"{initial_mean:.2f}",
                 'initial_target': f"{initial_target:.2f}",
-                'initial_bonus': all(
-                    initial_player_distance <= distance
-                    for distance in initial_opponent_distances
-                ),
+                'initial_bonus': p.initial_bonus,
                 'after_mean': f"{after_mean:.2f}",
                 'after_target': f"{after_target:.2f}",
-                'after_bonus': player.in_round(p.round_number).bonus_2,
+                'after_bonus': p.after_bonus,
                 "reason": player.in_round(p.round_number).reason if g.round_number in reasoning_rounds else None,
                 'is_current': p.round_number == player.round_number,
                 'is_reasoning_round': p.round_number in reasoning_rounds,
