@@ -80,9 +80,9 @@
                     <th>回合</th>
                     <th>回合類型</th>
                     <th>您的數字</th>
-                    <th>平均數字</th>
-                    <th>目標數字</th>
+                    <th>對手<br>一開始的數字</th>
                     <th>是否為<br>數字贏家</th>
+                    <th>是否與對手<br>數字相同</th>
                     <th>理由判斷結果</th>
                     <th>是否以<br>理由決定報酬</th>
                     <th>回合報酬</th>
@@ -100,25 +100,11 @@
                             {{ entry.num }}
                         {% endif %}
                     </td>
+                    <td>{{ entry.other_num }}</td>
                     <td>
-                        {% if entry.is_reasoning_round %}
-                            <span class="feedback-pair">{{ entry.initial_mean }}<span class="feedback-separator">→</span>{{ entry.after_mean }}</span>
-                        {% else %}
-                            {{ entry.mean }}
-                        {% endif %}
+                        {% if entry.bonus %}是{% else %}否{% endif %}
                     </td>
-                    <td>
-                        {% if entry.is_reasoning_round %}
-                            <span class="feedback-pair">{{ entry.initial_target }}<span class="feedback-separator">→</span>{{ entry.after_target }}</span>
-                        {% else %}
-                            {{ entry.target }}
-                        {% endif %}
-                    </td>
-                    <td>
-                        {% if entry.is_reasoning_round %}
-                            <span class="feedback-pair">{% if entry.initial_bonus %}是{% else %}否{% endif %}<span class="feedback-separator">→</span><strong>{% if entry.after_bonus %}是{% else %}否{% endif %}</strong></span>
-                        {% elif entry.bonus %}是{% else %}否{% endif %}
-                    </td>
+                    <td>{% if entry.is_same %}是{% else %}否{% endif %}</td>
                     <td>{% if entry.is_reasoning_round %}{{ entry.result_text_2 }}{% else %}-{% endif %}</td>
                     <td>{% if entry.is_reasoning_round %}{% if entry.payoff_by_reasoning_2 == None %}-{% elif entry.payoff_by_reasoning_2 %}是{% else %}否{% endif %}{% else %}-{% endif %}</td>
                     <td class="fw-bold">{{ entry.final_payoff_2 }}</td>

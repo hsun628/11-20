@@ -1,90 +1,142 @@
-# models
-
 from otree.api import *
+from reasoning_rounds import (
+    draw_balanced_reasoning_schedules,
+    validate_reasoning_schedules,
+)
 from settings import DEBUG
-from reasoning_rounds import draw_reasoning_rounds
-from settings import num_participant
+
 
 class C(BaseConstants):
     NAME_IN_URL = 'phase2'
     PLAYERS_PER_GROUP = 2
-    NUM_ROUNDS = 3 if DEBUG else 10
+    NUM_ROUNDS = 5 if DEBUG else 15
+    REASONING_SCHEDULES_BY_ID = (
+        {'A': (1, 3), 'B': (1, 4)}
+        if DEBUG
+        else {'A': (1, 3, 8, 13), 'B': (1, 4, 9, 14)}
+    )
+    REASONING_SCHEDULES = (
+        REASONING_SCHEDULES_BY_ID['A'],
+        REASONING_SCHEDULES_BY_ID['B'],
+    )
+
+
 class Subsession(BaseSubsession):
     pass
 
+
 def creating_session(subsession):
     if subsession.round_number == 1:
-        subsession.session.vars['phase2_reasoning_rounds'] = draw_reasoning_rounds(
-            C.NUM_ROUNDS
+        validate_reasoning_schedules(
+            C.REASONING_SCHEDULES_BY_ID,
+            C.NUM_ROUNDS,
         )
-    subsession.group_randomly()
-    is_reasoning_round = subsession.round_number in subsession.session.vars[
-        'phase2_reasoning_rounds'
+        subsession.group_randomly()
+        groups = subsession.get_groups()
+        assignments = draw_balanced_reasoning_schedules(
+            len(groups), *C.REASONING_SCHEDULES
+        )
+        subsession.session.vars['phase2_reasoning_schedules'] = {
+            str(group.id_in_subsession): list(schedule)
+            for group, schedule in zip(groups, assignments)
+        }
+        subsession.session.vars['phase2_reasoning_rounds'] = sorted(
+            set(C.REASONING_SCHEDULES[0]) | set(C.REASONING_SCHEDULES[1])
+        )
+    else:
+        subsession.group_like_round(1)
+
+    schedules_by_group = subsession.session.vars[
+        'phase2_reasoning_schedules'
     ]
-    for player in subsession.get_players():
-        player.is_reasoning_round = is_reasoning_round
+    for group in subsession.get_groups():
+        reasoning_rounds = schedules_by_group[str(group.id_in_subsession)]
+        schedule_id = (
+            'A' if tuple(reasoning_rounds) == C.REASONING_SCHEDULES[0] else 'B'
+        )
+        for player in group.get_players():
+            player.reasoning_schedule_id = schedule_id
+            player.is_reasoning_round = (
+                subsession.round_number in reasoning_rounds
+            )
+            player.participant.vars['phase2_reasoning_rounds'] = reasoning_rounds
+            player.participant.vars['phase2_reasoning_schedule_id'] = schedule_id
+
 
 def reasoning_rounds_for(player):
-    return player.session.vars['phase2_reasoning_rounds']
+    return player.participant.vars['phase2_reasoning_rounds']
+
+
+def set_payoffs(group: BaseGroup):
+    for player in group.get_players():
+        opponent = player.get_others_in_group()[0]
+        final_num = (
+            player.revised_num
+            if player.field_maybe_none('revised_num') is not None
+            else player.initial_num
+        )
+        player.final_num = final_num
+        player.opponent_initial_num = opponent.initial_num
+        player.opponent_revised_num = opponent.field_maybe_none('revised_num')
+        player.is_number_winner = final_num == opponent.initial_num - 1
+        player.is_same = final_num == opponent.initial_num
+        player.payoff = cu(final_num)
+        if player.is_number_winner:
+            player.payoff += cu(20)
+
+        round_number = player.round_number
+        player.participant.vars[f"initial_num_{round_number}"] = player.initial_num
+        player.participant.vars[f"revised_num_{round_number}"] = (
+            player.field_maybe_none('revised_num')
+        )
+        player.participant.vars[f"num_{round_number}"] = final_num
+        player.participant.vars[f"other_num_{round_number}"] = opponent.initial_num
+        player.participant.vars[f"other_revised_num_{round_number}"] = (
+            opponent.field_maybe_none('revised_num')
+        )
+        player.participant.vars[f"reason_{round_number}"] = (
+            player.reason if round_number in reasoning_rounds_for(player) else None
+        )
+        player.participant.vars[f"bonus_{round_number}"] = (
+            player.is_number_winner
+        )
+        player.participant.vars[f"phase2_same_number_{round_number}"] = (
+            player.is_same
+        )
+        player.participant.vars['phase2_reasoning_rounds'] = (
+            reasoning_rounds_for(player)
+        )
+
 
 class Group(BaseGroup):
     pass
 
-def set_payoffs(group: Group): # because we use wait_for_all_groups
-    for p in group.get_players():
-        other = p.get_others_in_group()[0]
-        final_num = p.revised_num if p.field_maybe_none("revised_num") is not None else p.num
-        other_revised_num = other.field_maybe_none("revised_num")
-        p.other_num = other.num
-        p.other_revised_num = other_revised_num
-
-        p.bonus = final_num == other.num - 1
-
-        p.payoff = cu(final_num)
-        if p.bonus == True:
-            p.payoff += cu(20) 
-
-        p.participant.vars[f"initial_num_{p.round_number}"] = p.num
-        p.participant.vars[f"revised_num_{p.round_number}"] = p.field_maybe_none("revised_num")
-        p.participant.vars[f"num_{p.round_number}"] = final_num
-        p.participant.vars[f"other_num_{p.round_number}"] = other.num
-        p.participant.vars[f"other_revised_num_{p.round_number}"] = other_revised_num
-        p.participant.vars[f"reason_{p.round_number}"] = (
-            p.reason if p.round_number in reasoning_rounds_for(p) else None
-        )
-        p.participant.vars[f"bonus_{p.round_number}"] = p.bonus
-        p.participant.vars['phase2_reasoning_rounds'] = reasoning_rounds_for(p)
 
 class Player(BasePlayer):
-    num = models.IntegerField(
-        min = 11,
-        max = 20,
-        label = "請選擇您的數字：",
+    initial_num = models.IntegerField(
+        min=11,
+        max=20,
+        label="請選擇您的數字：",
     )
     revised_num = models.IntegerField(
-        min = 11,
-        max = 20,
-        blank=True,
-        label = "請重新選擇數字：",
-    )
-    other_num = models.IntegerField(
-        min = 11,
-        max = 20,
-    )
-    other_revised_num = models.IntegerField(
         min=11,
         max=20,
         blank=True,
+        label="請重新選擇數字：",
     )
+    final_num = models.IntegerField(min=11, max=20)
+    opponent_initial_num = models.IntegerField(min=11, max=20)
+    opponent_revised_num = models.IntegerField(min=11, max=20, blank=True)
     reason = models.LongStringField(
-        label = "請說明您選擇該數字的理由：",
-        initial = "",
-        rows = 3
+        label="請說明您選擇該數字的理由：",
+        initial="",
+        rows=3,
     )
+    reasoning_schedule_id = models.StringField()
     is_reasoning_round = models.BooleanField(initial=False)
-    bonus = models.BooleanField(
-        initial = False
-    )
+    is_number_winner = models.BooleanField(initial=False)
+    is_same = models.BooleanField(initial=False)
+
 
 ##############################################################################
 
@@ -92,27 +144,25 @@ class Player(BasePlayer):
 
 from otree.api import *
 
+
 class InstructionPage(Page):
     @staticmethod
     def is_displayed(player):
         return player.round_number == 1
 
+
 class Phase2StartWaitPage(WaitPage):
     title_text = "請等待其他受試者完成準備"
-
     wait_for_all_groups = True
 
     @staticmethod
     def is_displayed(player):
         return player.round_number == 1
 
+
 class game(Page):
     form_model = 'player'
-    form_fields = ['num']
-
-    @staticmethod
-    def is_displayed(player):
-        return True
+    form_fields = ['initial_num']
 
     @staticmethod
     def vars_for_template(player):
@@ -120,9 +170,8 @@ class game(Page):
 
 
 class reasoningWaitPage(WaitPage):
-    title_text = "請等待其他受試者完成決策"
-
-    wait_for_all_groups = True
+    title_text = "請等待同組受試者完成決策"
+    wait_for_all_groups = False
 
     @staticmethod
     def is_displayed(player):
@@ -141,80 +190,90 @@ class game_with_reason(Page):
     def vars_for_template(player):
         return {"number_choices": range(11, 21)}
 
-    # block forbidden inputs
     @staticmethod
     def error_message(player, values):
         revised_num = values.get('revised_num')
-        if revised_num is not None and revised_num == player.num:
+        if revised_num is not None and revised_num == player.initial_num:
             return "重新選擇的數字不可與原先選擇相同。"
 
-        content = values['reason'].strip() # .strip removes leading/trailing blankspace
-
-        if len(content) == 0: # block empty input
+        content = values['reason'].strip()
+        if len(content) == 0:
             return "理由欄位不能為空，請輸入您的決策思考過程。"
-
-        if len(set(content)) < 3 and len(content) > 0: # block too short, single-word, or repetitive inputs
+        if len(set(content)) < 3:
             return "請勿輸入過短、單一，或重複的文字內容。"
-        
+
 
 class DecisionWaitPage(WaitPage):
-    title_text = "請等待其他受試者完成決策"
-
-    wait_for_all_groups = True
+    title_text = "請等待同組受試者完成決策"
+    wait_for_all_groups = False
     after_all_players_arrive = 'set_payoffs'
+
 
 class Results(Page):
     @staticmethod
     def vars_for_template(player):
-        player_history = player.in_all_rounds()
         history = []
         reasoning_rounds = reasoning_rounds_for(player)
 
-        for p in player_history:
-            other_num = p.other_num
-            initial_bonus = p.num == other_num - 1
+        for round_player in player.in_all_rounds():
+            opponent_num = round_player.opponent_initial_num
+            final_num = round_player.final_num
             history.append({
-                'round': p.round_number,
-                'initial_num': f"{p.num}",
-                'revised_num': p.field_maybe_none("revised_num"),
-                'num': f"{p.revised_num if p.field_maybe_none('revised_num') is not None else p.num}",
-                "other_num": f"{other_num}",
-                "reason": (
-                    player.in_round(p.round_number).reason
-                    if p.round_number in reasoning_rounds else None
+                'round': round_player.round_number,
+                'initial_num': str(round_player.initial_num),
+                'revised_num': round_player.field_maybe_none('revised_num'),
+                'num': str(final_num),
+                'other_num': opponent_num,
+                'reason': (
+                    round_player.reason
+                    if round_player.round_number in reasoning_rounds else None
                 ),
-                'is_current': p.round_number == player.round_number,
-                'is_reasoning_round': p.round_number in reasoning_rounds,
-                'initial_bonus': initial_bonus,
-                'bonus': player.in_round(p.round_number).bonus,
-                'round_payoff': player.in_round(p.round_number).payoff
+                'is_current': round_player.round_number == player.round_number,
+                'is_reasoning_round': (
+                    round_player.round_number in reasoning_rounds
+                ),
+                'initial_bonus': round_player.initial_num == opponent_num - 1,
+                'bonus': round_player.is_number_winner,
+                'is_same': round_player.is_same,
+                'round_payoff': round_player.payoff,
             })
 
         if player.round_number == C.NUM_ROUNDS:
-            round_payoffs = {r: player.in_round(r).payoff for r in range(1, C.NUM_ROUNDS + 1)}
-            sum_payoffs = sum(round_payoffs.values())
-
+            round_payoffs = {
+                round_number: player.in_round(round_number).payoff
+                for round_number in range(1, C.NUM_ROUNDS + 1)
+            }
             player.participant.vars["phase2_round_payoffs"] = round_payoffs
-            player.participant.vars["phase2_sum_payoffs"] = sum_payoffs
+            player.participant.vars["phase2_sum_payoffs"] = sum(
+                round_payoffs.values()
+            )
             player.participant.vars["phase2_history"] = history
-            
-        return {
-            'history': history
-        }
-    
+
+        return {'history': history}
+
 
 class ResultsWaitPage(WaitPage):
-    title_text = "請等待其他受試者確認結果"
+    title_text = "請等待同組受試者確認結果"
+    wait_for_all_groups = False
 
+
+class Phase2EndWaitPage(WaitPage):
+    title_text = "請等待所有受試者完成第二部分"
     wait_for_all_groups = True
 
+    @staticmethod
+    def is_displayed(player):
+        return player.round_number == C.NUM_ROUNDS
+
+
 page_sequence = [
-    InstructionPage, 
+    InstructionPage,
     Phase2StartWaitPage,
-    game, 
+    game,
     reasoningWaitPage,
     game_with_reason,
     DecisionWaitPage,
     Results,
-    ResultsWaitPage
+    ResultsWaitPage,
+    Phase2EndWaitPage,
 ]

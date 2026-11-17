@@ -57,10 +57,10 @@
 
 <br>
 
-<p>您原先選擇的數字：<b>[{{ player.num }}]</b></p>
+<p>您原先選擇的數字：<b>[{{ player.initial_num }}]</b></p>
 <div class="number-grid" aria-label="原先選擇的數字">
     {% for number in number_choices %}
-        <div class="number-box {% if number == player.num %}selected-initial{% endif %}">{{ number }}</div>
+        <div class="number-box {% if number == player.initial_num %}selected-initial{% endif %}">{{ number }}</div>
     {% endfor %}
 </div>
 
@@ -92,7 +92,7 @@
 
 <br>
 
-<p id="reason-prompt">請說明您選擇數字 <b>[<span id="reason-final-number">{{ player.num }}</span>]</b> 的理由：</p>
+<p id="reason-prompt">請說明您選擇數字 <b>[<span id="reason-final-number">{{ player.initial_num }}</span>]</b> 的理由：</p>
 <div id="reason-error" class="alert alert-danger field-error" style="display:none;" role="alert"></div>
 <div id="time-warning" class="alert alert-danger" style="display:none;">請盡快提交您的決策理由！</div>
 
@@ -106,7 +106,7 @@
 {% block scripts %}
 <script>
     document.addEventListener("DOMContentLoaded", function() {
-        const initialNumber = "{{ player.num }}";
+        const initialNumber = "{{ player.initial_num }}";
         const revisionInput = document.getElementById("id_revised_num");
         const reasonInput = document.getElementById("id_reason");
         const changeNumberOptions = document.querySelectorAll('input[name="change-number"]');

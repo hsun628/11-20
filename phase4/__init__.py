@@ -9,22 +9,61 @@ from settings import num_participant
 class C(BaseConstants):
     NAME_IN_URL = 'phase4'
     PLAYERS_PER_GROUP = 4  if DEBUG else int(num_participant)
-    NUM_ROUNDS = 3 if DEBUG else 10
-    Prediction_Reward = 50
+    # Keep source-round indices for storing AI results against the original rounds.
+    NUM_ROUNDS = ai_processing.C.NUM_ROUNDS
+    Prediction_Reward = 40
 
     exchange_rate = 0.25   # exchange rate for NTD
     participation_fee = 150
 
 def reasoning_rounds_p2_for(player):
-    return player.session.vars["phase2_reasoning_rounds"]
+    return player.participant.vars["phase2_reasoning_rounds"]
+
+def prediction_rounds_p2_for(player):
+    return list(range(1, len(reasoning_rounds_p2_for(player)) + 1))
+
+
+def basic_source_round_for_prediction(player, prediction_round):
+    reasoning_rounds = reasoning_rounds_p2_for(player)
+    if prediction_round < 1 or prediction_round > len(reasoning_rounds):
+        raise ValueError(
+            f"Prediction round {prediction_round} is outside the Basic schedule."
+        )
+    return reasoning_rounds[prediction_round - 1]
+
+
+def eligible_prediction_targets(player, prediction_round):
+    schedule_id = player.participant.vars["phase2_reasoning_schedule_id"]
+    eligible_targets = []
+    for candidate in player.subsession.get_players():
+        if candidate.id_in_subsession == player.id_in_subsession:
+            continue
+        if candidate.participant.vars.get(
+            "phase2_reasoning_schedule_id"
+        ) != schedule_id:
+            continue
+
+        source_round = basic_source_round_for_prediction(
+            candidate, prediction_round
+        )
+        history = candidate.participant.vars.get("phase2_history", [])
+        if any(
+            entry.get("round") == source_round
+            and entry.get("human_reason")
+            and entry.get("gpt_reason")
+            for entry in history
+        ):
+            eligible_targets.append((candidate, source_round))
+    return eligible_targets
+
 
 def reasoning_rounds_p3_for(player):
-    return player.session.vars["phase3_reasoning_rounds"]
+    return player.participant.vars["phase3_reasoning_rounds"]
 
 class Subsession(BaseSubsession):
     def creating_session(self):
-        if self.round_number == 1:
-            self.group_like_round("phase_1", 1)
+        if self.round_number > 1:
+            self.group_like_round(1)
 
 class Group(BaseGroup):
     pass
@@ -34,15 +73,22 @@ def calculate_results(group:Group):
         p.is_correct = False
         p.payoff = cu(0)
 
-        if p.round_number not in reasoning_rounds_p2_for(p) or p.field_maybe_none("tp_id") is None:
+        if (
+            p.round_number not in prediction_rounds_p2_for(p)
+            or p.field_maybe_none("tp_id") is None
+        ):
             continue
 
         tp = [player for player in p.subsession.get_players() if player.id_in_subsession == p.tp_id][0]
+        source_round = p.field_maybe_none("basic_source_round")
+        if source_round is None:
+            source_round = basic_source_round_for_prediction(tp, p.round_number)
+            p.basic_source_round = source_round
         history = tp.participant.vars.get("phase2_history", [])
 
         current_entry = None
         for entry in history:
-            if entry.get("round") == p.round_number:
+            if entry.get("round") == source_round:
                 current_entry = entry
                 break
         
@@ -82,6 +128,7 @@ class Player(BasePlayer):
     )
 
     tp_id = models.IntegerField()
+    basic_source_round = models.IntegerField(blank=True)
     is_flipped = models.BooleanField()
 
 
@@ -111,12 +158,12 @@ class ProcessingPage(Page):
             if not player.is_gpt_finished and p_id not in ai_processing._thread_storage:
                 participant_vars = dict(player.participant.vars)
                 participant_vars["id_in_subsession"] = p_id
-                participant_vars["phase2_reasoning_rounds"] = player.session.vars[
-                    "phase2_reasoning_rounds"
-                ]
-                participant_vars["phase3_reasoning_rounds"] = player.session.vars[
-                    "phase3_reasoning_rounds"
-                ]
+                participant_vars["phase2_reasoning_rounds"] = (
+                    player.participant.vars["phase2_reasoning_rounds"]
+                )
+                participant_vars["phase3_reasoning_rounds"] = (
+                    player.participant.vars["phase3_reasoning_rounds"]
+                )
                 thread = threading.Thread(
                     target=ai_processing.AIProcessor().gpt_process,
                     args=(participant_vars,),
@@ -174,7 +221,7 @@ class Prediction(Page):
 
     @staticmethod
     def is_displayed(player):
-        if player.round_number in reasoning_rounds_p2_for(player):
+        if player.round_number in prediction_rounds_p2_for(player):
             if player.field_maybe_none("is_flipped") is None:
                 player.is_flipped = random.choice([True, False])
             return True
@@ -183,19 +230,38 @@ class Prediction(Page):
     @staticmethod
     def vars_for_template(player):
         if player.field_maybe_none("tp_id") is None:
-            others = player.get_others_in_group()
-            target = random.choice(others)   
+            eligible_targets = eligible_prediction_targets(
+                player, player.round_number
+            )
+            if not eligible_targets:
+                raise ValueError(
+                    "No other participant in the same reasoning schedule has "
+                    "complete Basic reasoning data for prediction round "
+                    f"{player.round_number}."
+                )
+            target, source_round = random.choice(eligible_targets)
             player.tp_id = target.id_in_subsession
-        
-        tp = player.subsession.get_players()[player.tp_id - 1]
-           
+            player.basic_source_round = source_round
+
+        tp = next(
+            participant
+            for participant in player.subsession.get_players()
+            if participant.id_in_subsession == player.tp_id
+        )
+        source_round = player.field_maybe_none("basic_source_round")
+        if source_round is None:
+            source_round = basic_source_round_for_prediction(
+                tp, player.round_number
+            )
+            player.basic_source_round = source_round
+
         history = tp.participant.vars.get("phase2_history",[])
         current_entry = next(
-            (entry for entry in history if entry.get("round") == player.round_number),
+            (entry for entry in history if entry.get("round") == source_round),
             {"human_reason": "NaN", "gpt_reason": "NaN", "winner_type": "NaN"}
         )
 
-        target_num = tp.participant.vars.get(f'num_{player.round_number}') 
+        target_num = tp.participant.vars.get(f'num_{source_round}')
 
         if player.is_flipped:
             reason_a = current_entry.get("gpt_reason")
@@ -207,10 +273,13 @@ class Prediction(Page):
         player.participant.vars[f"reason_a_{player.round_number}"] = reason_a
         player.participant.vars[f"reason_b_{player.round_number}"] = reason_b
 
-        reasoning_round_num = reasoning_rounds_p2_for(player).index(player.round_number) + 1
+        reasoning_round_num = (
+            prediction_rounds_p2_for(player).index(player.round_number) + 1
+        )
 
         return {
             "round_number": player.round_number,
+            "source_round": source_round,
             "tp_id": player.tp_id,
             "target_num": target_num,
             "reason_a": reason_a,
@@ -224,7 +293,7 @@ class PredictionWaitPage(WaitPage):
     
     @staticmethod
     def is_displayed(player):
-        return player.round_number in reasoning_rounds_p2_for(player)
+        return player.round_number in prediction_rounds_p2_for(player)
 
     after_all_players_arrive = 'calculate_results'
 
@@ -232,22 +301,33 @@ class PredictionWaitPage(WaitPage):
 class Results(Page):
     @staticmethod
     def is_displayed(player):
-        return player.round_number in reasoning_rounds_p2_for(player)
+        return player.round_number in prediction_rounds_p2_for(player)
     
     @staticmethod
     def vars_for_template(player):
         tp_id = player.tp_id 
         all_players = player.subsession.get_players()
-        tp = all_players[tp_id - 1]
+        tp = next(
+            participant
+            for participant in all_players
+            if participant.id_in_subsession == tp_id
+        )
 
         history = tp.participant.vars.get("phase2_history", [])
 
-        current_entry = next((e for e in history if e.get("round") == player.round_number), {})
+        source_round = player.field_maybe_none("basic_source_round")
+        if source_round is None:
+            source_round = basic_source_round_for_prediction(
+                tp, player.round_number
+            )
+        current_entry = next((e for e in history if e.get("round") == source_round), {})
         real_winner = current_entry.get("winner_type")
 
         result_text = "正確" if player.is_correct else "錯誤"
 
-        reasoning_round_num = reasoning_rounds_p2_for(player).index(player.round_number) + 1
+        reasoning_round_num = (
+            prediction_rounds_p2_for(player).index(player.round_number) + 1
+        )
 
         return {
             "reason_a": player.participant.vars[f"reason_a_{player.round_number}"],

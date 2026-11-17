@@ -29,9 +29,9 @@
             <th>回合</th>
             <th>回合類型</th>
             <th>您的數字</th>
-            <th>平均數字</th>
-            <th>目標數字</th>
+            <th>對手<br>一開始的數字</th>
             <th>是否為<br>數字贏家</th>
+            <th>是否與對手<br>數字相同</th>
             <th>回合報酬</th>
         </tr>
     </thead>
@@ -57,22 +57,20 @@
                 </td>
                 <td>
                     {% if d.is_reasoning_round %}
-                        <span class="feedback-pair">{{ d.initial_mean }}<span class="feedback-separator">→</span>{{ d.after_mean }}</span>
+                        <span class="feedback-pair">{{ d.other_num }}</span>
                     {% else %}
-                        {{ d.mean }}
+                        {{ d.other_num }}
                     {% endif %}
                 </td>
                 <td>
                     {% if d.is_reasoning_round %}
-                        <span class="feedback-pair">{{ d.initial_target }}<span class="feedback-separator">→</span>{{ d.after_target }}</span>
-                    {% else %}
-                        {{ d.target }}
-                    {% endif %}
-                </td>
-                <td>
-                    {% if d.is_reasoning_round %}
-                        <span class="feedback-pair">{% if d.initial_bonus %}是{% else %}否{% endif %}<span class="feedback-separator">→</span>{% if d.after_bonus %}是{% else %}否{% endif %}</span>
+                        <span class="feedback-pair">{% if d.initial_bonus %}是{% else %}否{% endif %}<span class="feedback-separator">→</span>{% if d.bonus %}是{% else %}否{% endif %}</span>
                     {% elif d.bonus %}是{% else %}否{% endif %}
+                </td>
+                <td>
+                    {% if d.is_reasoning_round %}
+                        <span class="feedback-pair">{% if d.initial_same %}是{% else %}否{% endif %}<span class="feedback-separator">→</span>{% if d.is_same %}是{% else %}否{% endif %}</span>
+                    {% elif d.is_same %}是{% else %}否{% endif %}
                 </td>
                 <td>
                     {% if d.is_reasoning_round %}

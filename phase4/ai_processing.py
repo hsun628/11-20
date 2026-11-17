@@ -6,7 +6,6 @@ import json
 import random
 import time
 import threading
-
 from settings import DEBUG
 
 
@@ -30,20 +29,19 @@ def get_openai_client():
 
 class C(BaseConstants):
     NAME_IN_URL = "phase4"
-    NUM_ROUNDS = 3 if DEBUG else 10
+    NUM_ROUNDS = 5 if DEBUG else 15
     Pass_Reward_p2 = 40
     Pass_Reward_p3 = 40
 
     experimental_rules = """
-        * Part II consists of 10 rounds. At the beginning of each round, the computer will randomly assign all participants into groups of two.
-        * In each round, both you and the other participant in your group (hereafter referred to as your "opponent") first choose an integer between 11 and 20.
-        * Your payoff is the equal amount of experimental currenccy as your chosen number with a bonus of 20 if your number is exactly one less than your opponent's number.
+        * Part II consists of 15 rounds. Before the first round begins, the computer will randomly pair participants into groups of two for this part of the experiment.
+        * In each round, all participants must choose an integer between 11 and 20. If your chosen number is exactly one less than the number chosen by the other participant in your group (hereafter referred to as your "opponent"), you will be the "Number Winner" of that round.
+        * Your base payoff for each round will be equal to the number you choose, in experimental currency units (ECUs). The Number Winner of that round will receive an additional 20 ECUs.
         """
     experimental_rules_2 = """
-        * Part III consists of 10 rounds. At the beginning of this part, the computer randomly divides all participants into groups. The members of each group will be fixed during this part, and the number of participants in each group will be displayed on the screen.
-        * In each round, you need to choose an integer between 0 and 100.
-        * Each participant's Target Number is 0.7 times the average of that group's numbers.
-        * For each group, the participant whose number is closest to the Target Number will be the winner of that round. If there is a tie, the winner will be randomly selected from the tied participants.
+        * Part III consists of 15 rounds. Before the first round begins, the computer will randomly pair participants into groups of two for this part of the experiment.
+        * In each round, all participants must choose an integer between 11 and 20. If your chosen number is exactly one less than the number chosen by the other participant in your group (hereafter referred to as your "opponent"), you will be the "Number Winner" of that round.
+        * Your base payoff for each round will be equal to the number you choose, in experimental currency units (ECUs). The Number Winner of that round will receive an additional 20 ECUs. Moreover, if your chosen number is the same as the number chosen by your opponent, you will receive an additional 10 ECUs.
         """
 
 
@@ -114,43 +112,44 @@ def gpt_judge(experimental_rules, reasoning_1, reasoning_2, is_flipped_value):
     judge_prompt = f"""
 
     ### Role:
-        You are a professional judge. Your task is to evaluate the explanations provided by participants regarding their decision-making process.
+        You are a professional judge. Your task is to evaluate the explanations (decision-making reasons) participants provide for their decision-making process.
 
     ### Judging Task:
-        Compare the reasons provided by the following two participants. Determine which participant more specifically explains the "underlying thoughts" and the "information used" behind their decision.
+        Compare the reasons provided by the following two participants. Determine which participant more specifically explains the "underlying thoughts" behind their decision and the "information" they used to make it.
 
     ### Evaluation Criteria (Strictly Adhere to the Following):
 
-    * **Information & Belief:** Does the participant mention specific information they observed? Do they state their inferences or hypotheses about the current situation? Did they elaborate on how they arrive at these inferences and hypotheses?
+    * **Information & Belief:** Does the participant mention specific information they observed? Do they describe inferences or assumptions about the current situation? Do they explain in detail how they formed these inferences or assumptions?
 
-    * **Logic & Strategy:** Does the participant demonstrate the derivation process from the aforementioned information and beliefs to their final decision?
-        * **Is the logic consistent with the experimental rules? (Crucial):** Does the claimed causal relationship in the reasoning align with the experimental rules? If the reasoning fundamentally contradicts the rules or physical facts, the reasoning should be considered a "Logical Break." Such a reasoning must receive a lower evaluation than one that is logically self-consistent.
+    * **Logic & Strategy:** Does the participant clearly show how they derived their final decision from the aforementioned information and beliefs?
+        * **Is the logic consistent with the rules? (Crucial):** Does the causal relationship described in the reason align with the experimental rules? If the reason contradicts the rules (for example, claiming that a decision can produce an effect that is impossible under the rules), treat it as a "Logical Break." A reason with a Logical Break must be evaluated lower than a logically consistent reason.
 
-    * **Level of Specificity:** Is the reason specific? (For example: prefer "Because I observed A, I expected B, and therefore adopted strategy C" over "I just picked one" or "I wanted to choose this"). You can further judge based on:
-        - Whether the reason contains specific information related to the rules, rather than just a vague description.
-        - Whether there are clear causal and logical relationships between sentences.
+    * **Level of Specificity:** Is the reason specific? For example, prefer "Because I observed A, I expected B, and therefore chose strategy C" over "I just picked one" or "I wanted to choose this." You can further assess:
+        - Whether the reason contains specific information related to the rules rather than only vague descriptions.
+        - Whether the statements have clear causal relationships and form a coherent line of reasoning.
 
     ### Strict Prohibitions (Do NOT Consider):
 
-    * **Do NOT judge based on the "quality" or "winning probability" of the decision:** Even if the participant's reasoning contains calculation errors or the decision itself has a very low probability of winning, as long as they clearly and logically explain their thought process, that reason should receive a higher evaluation.
-    * **Note:** Your mission is to evaluate "who more specifically explained their underlying thoughts and information used," NOT "how smart the decision was."
+    * **Do NOT judge based on the "quality" or "probability of winning" of the decision:** Even if a participant's reasoning contains calculation errors or their decision has a very low probability of winning, their reason should still receive a higher evaluation if they clearly and logically explain their thought process.
+        * **Note:** Your task is to evaluate "which participant more specifically explained the thoughts behind their decision and the information they used," NOT "which decision was smarter."
 
-    * **Reasoning Length**: Do not judge the specificity or detail of a reason based on its word count. (For example: "Because I observed A, I expected B, and therefore adopted strategy C" and "Under my careful observation, I discovered A, so I expect others to do B; consequently, I decided to adopt strategy C to increase my winning probability" describe the same content. They should receive the same or very similar evaluation).
+    * **Do NOT judge based on the length of the reason:** Do not treat a longer reason as more specific or detailed simply because it has more words. For example, "Because I observed A, I expected B, and therefore chose strategy C" and "After carefully observing, I noticed A, so I expected others to do B; consequently, I chose strategy C to increase my chance of winning" convey the same information and reasoning process, and should receive the same or very similar evaluations.
 
-    * **Do NOT Favor "Self-Invented Jargon":** Participants may use self-invented professional-sounding terms (e.g., "Boundary Suppression Effect," "Group Deviation Law"). Do not award a higher evaluation simply because the reasoning contains these non-standard terms that appear neither in the experimental instruction nor in everyday language.
-        - Pay attention to whether the participant explicitly explains the meaning of these invented terms, or whether the terms carry concrete logical weight within their common-sense semantic context.
-        - If the reasoning becomes hollow or lacks substance once these terms are removed, the reasoning should receive a lower evaluation.
+    * **Do NOT Favor Self-Invented Jargon:** Participants may use invented terms that sound professional (e.g., "Boundary Suppression Effect" or "Group Deviation Law"). Do not give a reason a higher evaluation merely because it contains non-standard terms that appear neither in the experimental instructions nor in everyday language.
+        - Consider whether the participant clearly explains what the invented terms mean and whether they have concrete logical meaning in an everyday context.
+        - If removing these terms makes the reason hollow or lacking in substance, give it a lower evaluation.
 
     ### Experimental instruction:
+        Refer to the instructions for the relevant part of the experiment:
         {experimental_rules}
 
     ### Response Format:
-        The following are two reasonings for a decision. Please evaluate them based on the judge criterion and prohibition above.
+        The following are two reasons written for the same decision. Compare them according to the evaluation criteria and prohibitions above.
 
             - reasoning_A: {reasons[0]}
             - reasoning_B: {reasons[1]}
 
-        Please state in the following JSON format which reasoning more specifically explained the underlying thoughts and information used. If the two are extremely close, you may declare a tie.
+        Determine which reason more specifically explains the "underlying thoughts" and "information used" behind the decision. If the two reasons are extremely close in specificity, you may declare a tie. Briefly explain your judgment in Traditional Chinese and follow the JSON format below exactly.
 
         {{
             "winner": "reasoning_A" or "reasoning_B" or "Tie",

@@ -11,3 +11,45 @@ def draw_reasoning_rounds(num_rounds):
         if candidates:
             selected_rounds.append(random.choice(candidates))
     return sorted(selected_rounds)
+
+
+def draw_balanced_reasoning_schedules(num_groups, schedule_a, schedule_b):
+    if num_groups < 2 or num_groups % 2:
+        raise ValueError("An even number of at least two groups is required.")
+
+    assignments = [tuple(schedule_a)] * (num_groups // 2)
+    assignments.extend([tuple(schedule_b)] * (num_groups // 2))
+    random.shuffle(assignments)
+    return assignments
+
+
+def validate_reasoning_schedules(schedules, num_rounds):
+    if set(schedules) != {"A", "B"}:
+        raise ValueError("Exactly two reasoning schedules, A and B, are required.")
+
+    lengths = set()
+    for schedule_id, rounds in schedules.items():
+        if not rounds:
+            raise ValueError(
+                f"Reasoning schedule {schedule_id} must contain at least one round."
+            )
+        if any(not isinstance(round_number, int) for round_number in rounds):
+            raise ValueError(
+                f"Reasoning schedule {schedule_id} must use integer round numbers."
+            )
+        if tuple(rounds) != tuple(sorted(set(rounds))):
+            raise ValueError(
+                f"Reasoning schedule {schedule_id} must be unique and chronological."
+            )
+        if rounds[0] < 1 or rounds[-1] > num_rounds:
+            raise ValueError(
+                f"Reasoning schedule {schedule_id} must fit within "
+                f"the configured {num_rounds} rounds."
+            )
+        lengths.add(len(rounds))
+
+    if len(lengths) != 1:
+        raise ValueError(
+            "All reasoning schedules must have the same number of rounds "
+            "so Phase 4 can present the same number of predictions."
+        )

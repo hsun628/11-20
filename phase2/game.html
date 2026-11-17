@@ -40,7 +40,7 @@
 <div id="error-warning" class="alert alert-danger" style="display:none;">請先選擇數字！</div>
 <div id="time-warning" class="alert alert-danger" style="display:none;">請盡快選擇決策數字！</div>
 <p>請選擇您的數字：</p>
-<div style="display:none;">{{ form.num }}</div>
+<div style="display:none;">{{ form.initial_num }}</div>
 <div class="number-grid">
     {% for number in number_choices %}
         <button type="button" class="number-box" data-value="{{ number }}">{{ number }}</button>
@@ -54,7 +54,7 @@
 {% block scripts %}
 <script>
     document.addEventListener("DOMContentLoaded", function() {
-        const numberInput = document.getElementById("id_num");
+        const numberInput = document.getElementById("id_initial_num");
         const errorWarning = document.getElementById("error-warning");
         const timeWarning = document.getElementById("time-warning");
         const form = document.querySelector("form");

@@ -17,15 +17,15 @@ num_participant = int(
 # -------------------
 SESSION_CONFIGS = [
     dict(
-        name = '11_20',
-        display_name = "11_20",
+        name = 'team_reasoning_11_20',
+        display_name = "team_reasoning_11_20",
         num_demo_participants = 4 if DEBUG else num_participant,
         app_sequence = ['phase1', 'phase2', 'phase3', 'phase4'],
     ),
 ]
 
 SESSION_CONFIG_DEFAULTS = dict(
-    display_name = "11_20",
+    display_name = "Basic 11-20 + No-cycle 11-20",
     real_world_currency_per_point = 1.00,
     participation_fee = 150.00,
     doc="",

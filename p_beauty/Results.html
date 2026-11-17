@@ -1,0 +1,93 @@
+{% extends "global/Page.html" %}
+{% load otree %}
+
+{% block content %}
+<style>
+    .table th,
+    .table td {
+        vertical-align: middle;
+    }
+    .feedback-pair {
+        white-space: nowrap;
+    }
+    .feedback-pair .feedback-separator {
+        color: #6c757d;
+        font-weight: normal;
+        padding: 0 0.25rem;
+    }
+</style>
+
+<h3 class="mb-4"><b>決策結果</b></h3>
+
+<p class="mb-3"><b>
+    ※ 額外說明回合報酬將在實驗第四部分結束後決定。
+</b></p>
+
+<table class="table text-center">
+    <thead>
+        <tr>
+            <th>回合</th>
+            <th>回合類型</th>
+            <th>您的數字</th>
+            <th>平均數字</th>
+            <th>目標數字</th>
+            <th>是否為<br>數字贏家</th>
+            <th>回合報酬</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for d in history %}
+            <tr {% if d.is_current %}style="background-color: #fff3cd; font-weight: bold;"{% endif %}>
+                <td>
+                    {{ d.round }} {% if d.is_current %}(此回合){% endif %}
+                </td>
+                <td>
+                    {% if d.is_reasoning_round %}
+                        額外說明回合 <span class="text-muted"><br>(一開始 → 最終選擇)</span>
+                    {% else %}
+                        一般回合
+                    {% endif %}
+                </td>
+                <td>
+                    {% if d.is_reasoning_round %}
+                        <span class="feedback-pair">{{ d.initial_num }}<span class="feedback-separator">→</span>{% if d.revised_num != None %}{{ d.revised_num }}{% else %}{{d.initial_num}}{% endif %}</span>
+                    {% else %}
+                        {{ d.num }}
+                    {% endif %}
+                </td>
+                <td>
+                    {% if d.is_reasoning_round %}
+                        <span class="feedback-pair">{{ d.initial_mean }}<span class="feedback-separator">→</span>{{ d.after_mean }}</span>
+                    {% else %}
+                        {{ d.mean }}
+                    {% endif %}
+                </td>
+                <td>
+                    {% if d.is_reasoning_round %}
+                        <span class="feedback-pair">{{ d.initial_target }}<span class="feedback-separator">→</span>{{ d.after_target }}</span>
+                    {% else %}
+                        {{ d.target }}
+                    {% endif %}
+                </td>
+                <td>
+                    {% if d.is_reasoning_round %}
+                        <span class="feedback-pair">{% if d.initial_bonus %}是{% else %}否{% endif %}<span class="feedback-separator">→</span>{% if d.after_bonus %}是{% else %}否{% endif %}</span>
+                    {% elif d.bonus %}是{% else %}否{% endif %}
+                </td>
+                <td>
+                    {% if d.is_reasoning_round %}
+                        尚未決定
+                    {% else %}
+                        {{ d.round_payoff }}
+                    {% endif %}
+                </td>
+            </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<div class="d-flex justify-content-center mt-4">
+    {% next_button %}
+</div>
+
+{% endblock %}

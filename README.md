@@ -1,35 +1,12 @@
 # Team Reasoning with LLM Interaction
 
-### Project Overview
-This project contains the oTree implementation and OpenAI API integration for a team reasoning experiment.
+This repository contains an oTree web application for a multi-stage decision-making study, including participant decision pages, result tracking, and optional OpenAI-based reasoning analysis.
 
-***
+## Setup
 
-### Module descriptions
-#### phase1:
-otree and html (pages) for the first stage of the experiment. 
-- **data handling**: results are stored into `participant.vars` to be passed to subsequent phases.
+1. Install the packages in `requirements.txt`.
+2. Set `OPENAI_API_KEY` in the environment when using the AI analysis feature.
+3. Configure `NUM_PARTICIPANT`, `OTREE_PRODUCTION`, `OTREE_ADMIN_PASSWORD`, and `OTREE_SECRET_KEY` for deployment as appropriate.
+4. Start the project with `otree devserver` for local development.
 
-#### phase2:
-similar to phase1
-
-#### phase_AI:
-similar to phase1
-  - **core functions**:
-    - `gpt_generate`: use GPT API to generate a reasoning based on the participant's decision.
-    - `gpt_judge`: an independent GPT API acts as a judge to compare the reasonings.
-  
-  - `prompt.md`: contains the full text of the system prompts and reasoning examples. (Note: The active prompts used by the server are mirrored in `phase_AI/__init__.py`).
-
-#### phase4:
-Combines AI reasoning generation and evaluation with the final prediction rounds. The instruction and processing pages run before the prediction pages, AI logic is in `phase4/ai_processing.py`, and results are saved to the phase4 player records.
-
-#### Reasoning rounds
-Part II and Part III each draw one reasoning round from every interval in `reasoning_rounds.REASONING_ROUND_RANGES`. Update that shared setting to adjust the intervals; selected rounds are saved separately per part and reused for AI processing and the final phase.
-
-***
-
-### setup instructions:
-  1. For local use, create a `.env` file in the root directory and set `OPENAI_API_KEY`.
-  2. On Heroku, configure `OPENAI_API_KEY`, `NUM_PARTICIPANT`, `OTREE_PRODUCTION=1`, `OTREE_ADMIN_PASSWORD`, and `OTREE_SECRET_KEY` as Config Vars. Do not commit API keys or passwords.
-  3. `NUM_PARTICIPANT` defaults to 4 when omitted. The app can start without an OpenAI key, but AI processing requires `OPENAI_API_KEY`.
+The app can run without an OpenAI API key when AI analysis is not used.
