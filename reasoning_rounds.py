@@ -14,11 +14,14 @@ def draw_reasoning_rounds(num_rounds):
 
 
 def draw_balanced_reasoning_schedules(num_groups, schedule_a, schedule_b):
-    if num_groups < 2 or num_groups % 2:
-        raise ValueError("An even number of at least two groups is required.")
+    if num_groups < 1:
+        raise ValueError("At least one group is required.")
 
-    assignments = [tuple(schedule_a)] * (num_groups // 2)
-    assignments.extend([tuple(schedule_b)] * (num_groups // 2))
+    groups_per_schedule = num_groups // 2
+    assignments = [tuple(schedule_a)] * groups_per_schedule
+    assignments.extend([tuple(schedule_b)] * groups_per_schedule)
+    if num_groups % 2:
+        assignments.append(tuple(random.choice((schedule_a, schedule_b))))
     random.shuffle(assignments)
     return assignments
 
